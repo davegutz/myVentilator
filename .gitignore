@@ -1,0 +1,63 @@
+
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.hex
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.lst
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.map
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.elf
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.bin.no_crc
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.bin
+Heart_rate_4_spo2_Click_Particle/src/Heart_rate_4_spo2_Click_Particle.cpp
+*.elf
+*.hex
+*.lst
+*.map
+*.bin
+Heart_rate_4_spo2_Click_Particle/src/Heart_rate_4_spo2_Click_Particle.cpp
+*.bin
+*.no_crc
+*.dfu
+*.elf
+*.hex
+*.lst
+*.map
+Heart_rate_4_spo2_Click_Particle/src/Heart_rate_4_spo2_Click_Particle.cpp
+*.bin
+*.bin
+*.no_crc
+*.dfu
+*.elf
+*.hex
+*.lst
+Heart_rate_4_spo2_Click_Particle/src/Heart_rate_4_spo2_Click_Particle.cpp
+Heart_rate_4_spo2_Click_Particle/src/Heart_rate_4_spo2_Click_Particle.cpp
+*.bin
+*.no_crc
+*.elf
+*.hex
+*.lst
+*.map
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.bin
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.bin.no_crc
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.dfu
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.elf
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.hex
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.lst
+Heart_rate_4_spo2_Click_Particle/target/1.5.2/photon/Heart_rate_4_spo2_Click_Particle.map
+*.stc
+PulseOx_HR4C_Particle/data reduction/debug.csv
+PulseOx_HR4C_Particle/data reduction/doubtf.csv
+PulseOx_HR4C_Particle/data reduction/debug.csv
+PulseOx_HR4C_Particle/data reduction/debug.csv
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug1.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug10.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug2.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug3.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug4.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug5.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug6.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug7.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug8.png
+PulseOx_HR4C_Particle/data reduction/plots/raw/debug9.png
+PulseOx_HR4C_Particle/data reduction/plots/debug.pdf
+O2_Insight_data/20032B1427/20210102054306
+O2_Insight_data/20032B1427/20210101220317
+PulseOx_HR4C_Arduino/dataReduction/debug.csv
