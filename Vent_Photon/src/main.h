@@ -36,18 +36,28 @@
 * There is a POT library here.   Haven't used it yet
   https://github.com/jmalloc/arduino-mcp4xxx
 
-* Pot Hardware Connections (MCP4151-103, 10k nom, to Photon):
-  1-CS   = D5
+* Pot Analog Connections
+  POA     ECMF 10 V supply
+  POW     ECMF Control Signal
+  POB     2-D of MOSFET and 6-POW of digipot
+
+* Digipot Hardware Connections (MCP4151-103, 10k nom, to Photon).   Completely off when depowered at VDD
+  1-CS   = D5 and 4k7 to 5V rail
   2-SCK  = D4
   3-MOSI = D2  (4k7 to D3 jumper)
   4-GND  = GND RAIL
-  5-POA  = 
-  6-POW  =
-  7-POB  =
-  8-VDD  = D7 and pullup to 5V RAIL using 4.7k
+  5-POA  = NC
+  6-POW  = Analog POT POB and D of MOSFET
+  7-POB  = ECMF GND and S of MOSFET
+  8-VDD  = D7 (?????pullup not needed???? and pullup to 5V RAIL using 4.7k)
+
+* MOSFET IRF530N  N-ch Normally Closed MOSFET (S-D NC switched open by G)
+  1-G     D7
+  2-D     POB of analog POT and POW of digipot
+  3-S     ECMF GND and POB of digipot
 
 * Honeywell temp/humidity Hardware Connections (Humidistat with temp SOIC  HIH6131-021-001)
-  1-VCORE= 0.1uF to GND
+  1-VCORE= 0.1uF jumper to GND
   2-VSS  = GND rail
   3-SCL  = D1
   4-SCA  = D0
@@ -57,23 +67,27 @@
   8-VDD  = 3v3
 
 * Photon to Proto
-  GND to 2 GND rails
-  D0 4k7 3v3 jumper I2C pullup
-  D0 4k7 3v3 jumper I2C pullup
-  D2 4k7 D3 jumper
-  VIN to 5V rail
-  3v3 to 3v3 rail 
-  micro USB to Serial Monitor on PC (either Particle Workbench monitor or CoolTerm) 
+  GND = to 2 GND rails
+  D0  = 4-SCA of Honeywell and 4k7 3v3 jumper I2C pullup
+  D1  = 3-SCL of Honeywell and 4k7 3v3 jumper I2C pullup
+  D2  = 4k7 D3 jumper to D3
+  D3  = to 3-SDI/SDO of digipot
+  D4  = 2-SCK of digipot
+  D5  = 1-CS of digipot
+  D6  = Y-C of DS18 and 4k7 3v3 jumper pullup
+  VIN = 5V rail
+  3v3 = 3v3 rail 
+  micro USB = Serial Monitor on PC (either Particle Workbench monitor or CoolTerm) 
 
-* 1-wire (MAXIM DS18B20)  library at https://github.com/particle-iot/OneWireLibrary
-  Y-C   D6 4k7 pullup to 3v3
-  R-VDD 5V rail
-  B-GND GND rail
+* 1-wire Temp (MAXIM DS18B20)  library at https://github.com/particle-iot/OneWireLibrary
+  Y-C   = D6
+  R-VDD = 5V rail
+  B-GND = GND rail
 
-* Elego power module
-  5V jumper to 5V RAIL on "A-side" of Photon
-  Jumper on "D-side" of Photon set to OFF
-  Round power supply plug 12 VDC x 1.0A Csec CS12b20100FUF
+* Elego power module mounted to 5V and 3v3 and GND rails
+  5V jumper = 5V RAIL on "A-side" of Photon
+  Jumper "D-side" of Photon set to OFF
+  Round power supply = round power supply plug 12 VDC x 1.0A Csec CS12b20100FUF
   
  * Author: Dave Gutz davegutz@alum.mit.edu  repository GITHUB myVentilator
  
@@ -229,7 +243,7 @@ void loop()
   double T = 0;                             // Present update time, s
   boolean testing = true;                   // Initial startup is calibration mode to 60 bpm, 99% spo2, 2% PI
   const int bare_wait = int(1000.0);        // To simulate peripherals sample time
-  static int cmd = 240;
+  static int cmd = 0;
   bool control;            // Control sequence, T/F
   bool display;            // LED display sequence, T/F
   bool filter;             // Filter for temperature, T/F
@@ -352,8 +366,8 @@ void loop()
   {
     pot_write(cmd);
     toggle = !toggle;
-    cmd += 1;
-    if (cmd>256) cmd=240;
+    cmd += 32;
+    if ( cmd>256 ) cmd = 0;
   }
 
   // Publish
