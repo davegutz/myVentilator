@@ -36,20 +36,33 @@
 * There is a POT library here.   Haven't used it yet
   https://github.com/jmalloc/arduino-mcp4xxx
 
-* Hardware Connections (MCP4151-103, 10k nom, to Photon):
-  -1-CS   = D5
-  -2-SCK  = D4
-  -3-MOSI = D2  (4k7 to D3 jumper)
-  -4-GND  = GND RAIL
-  -5-POA  = 
-  -6-POW  =
-  -7-POB  =
-  -8-VDD  = D6 and pullup to 5V RAIL using 4.7k
+* Pot Hardware Connections (MCP4151-103, 10k nom, to Photon):
+  1-CS   = D5
+  2-SCK  = D4
+  3-MOSI = D2  (4k7 to D3 jumper)
+  4-GND  = GND RAIL
+  5-POA  = 
+  6-POW  =
+  7-POB  =
+  8-VDD  = D6 and pullup to 5V RAIL using 4.7k
+
+* Honeywell temp/humidity Hardware Connections (Humidistat with temp SOIC  HIH6131-021-001)
+  1-VCORE= 0.1uF to GND
+  2-VSS  = GND
+  3-SCL  = D1
+  4-SCA  = D0
+  5-AL_H = NC
+  6-AL_L = NC
+  7-NC   = NC
+  8-VDD  = 3v3
 
 * Photon to Proto
   GND to 2 GND RAILS
+  D0 4k7 3v3 jumper I2C pullup
+  D0 4k7 3v3 jumper I2C pullup
   D2 4k7 D3 jumper
-  VIN to 5V
+  VIN to 5V rail
+  3v3 to 3v3 rail 
   micro USB to Serial Monitor on PC (either Particle Workbench monitor or CoolTerm) 
 
 * Elego power module
@@ -85,19 +98,55 @@ using namespace std;
 
 #include "constants.h"
 															   
+// Global locals
 char buffer[256];           // Serial print buffer
+int hum = 0;                // Relative humidity integer value, %
+int I2C_Status = 0;         // Bus status
+double Ta_Sense = NOMSET;   // Sensed temp, F
+double updateTime = 0.0;    // Control law update time, sec
+int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
+bool webHold = false;       // Web permanence request
+int webDmd = 62;            // Web sched, F
 
 // Utilities
 void serial_print_inputs(unsigned long now, double T);
-void serial_print(int i);
+void serial_print(int cmd);
 int pot_write(int step);
-boolean load(int reset, double T, unsigned int time_us);
+boolean load(int reset, double T, unsigned int time_ms);
 
 #ifdef PHOTON
 byte led_pulse = D7; //Blinks with each heartbeat
 byte vdd_supply = D6;  // Power the MCP4151
 #else
 byte led_pulse = 13; //Blinks with each heartbeat
+#endif
+
+#ifndef NO_CLOUD
+int particleHold(String command)
+{
+  if (command == "HOLD")
+  {
+    webHold = true;
+    return 1;
+  }
+  else
+  {
+     webHold = false;
+     return 0;
+  }
+}
+
+
+int particleSet(String command)
+{
+  int possibleSet = atoi(command);
+  if (possibleSet >= MINSET && possibleSet <= MAXSET)
+  {
+      webDmd = possibleSet;
+      return possibleSet;
+  }
+  else return -1;
+}
 #endif
 
 
@@ -112,16 +161,39 @@ void setup()
   // delay(1000);
 #endif
 
-  // MCP4151 using SPI1 and Digtial output 
-  SPI1.setBitOrder(MSBFIRST);
-  SPI1.setClockSpeed(10,MHZ);
-  SPI1.setDataMode(SPI_MODE0);
-  SPI1.begin();
-
   // Serial
   Serial.begin(115200); // initialize serial communication at 115200 bits per second:
   Serial.flush();
   delay(1000);  // Ensures a clean display on Arduino Serial startup on CoolTerm
+
+  // Peripherals
+  if ( !bare )
+  {
+    // MCP4151 power supply
+    pinMode(vdd_supply, OUTPUT);
+
+    // MCP4151 using SPI1 and Digtial output 
+    SPI1.setBitOrder(MSBFIRST);
+    SPI1.setClockSpeed(10,MHZ);
+    SPI1.setDataMode(SPI_MODE0);
+    SPI1.begin();
+
+    // I2C
+    Wire.setSpeed(CLOCK_SPEED_100KHZ);
+    Wire.begin();
+
+    // LEDs
+    pinMode(led_pulse, OUTPUT);
+  }
+
+  // Begin
+  Particle.connect();
+  #ifndef NO_CLOUD
+    Particle.function("HOLD", particleHold);
+    Particle.function("SET",  particleSet);
+  #endif
+
+  
 
 #ifdef PHOTON
   if ( debug>1 ) { sprintf(buffer, "Particle Photon.  bare = %d,\n", bare); Serial.print(buffer); };
@@ -129,15 +201,10 @@ void setup()
   if ( debug>1 ) { sprintf(buffer, "Arduino Mega2560.  bare = %d,\n", bare); Serial.print(buffer); };
 #endif
 
-  // LEDs
-  pinMode(led_pulse, OUTPUT);
-
-
-  // Peripherals
-  if ( !bare )
-  {
-    // MCP4151 power supply
-    pinMode(vdd_supply, OUTPUT);
+  // Header for debug print
+  if ( debug>1 )
+  { 
+    Serial.print(F("flag,time_ms,T,I2C_Status,Ta_Sense,hum,cmd")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -158,11 +225,77 @@ void loop()
   boolean testing = true;                   // Initial startup is calibration mode to 60 bpm, 99% spo2, 2% PI
   const int bare_wait = int(1000.0);        // To simulate peripherals sample time
   static int cmd = 240;
+  bool control;            // Control sequence, T/F
+  bool display;            // LED display sequence, T/F
+  bool filter;             // Filter for temperature, T/F
+  bool model;              // Run model, T/F
+  bool publishAny;         // Publish, T/F
+  bool publish1;           // Publish, T/F
+  bool publish2;           // Publish, T/F
+  bool publish3;           // Publish, T/F
+  bool publish4;           // Publish, T/F
+  bool query;              // Query schedule and OAT, T/F
+  bool read;               // Read, T/F
+  static unsigned long    lastControl  = 0UL; // Last control law time, ms
+  static unsigned long    lastDisplay  = 0UL; // Las display time, ms
+  static unsigned long    lastFilter   = 0UL; // Last filter time, ms
+  static unsigned long    lastModel    = 0UL; // Las model time, ms
+  static unsigned long    lastPublish1 = 0UL; // Last publish time, ms
+  static unsigned long    lastPublish2 = 0UL; // Last publish time, ms
+  static unsigned long    lastPublish3 = 0UL; // Last publish time, ms
+  static unsigned long    lastPublish4 = 0UL; // Last publish time, ms
+  static unsigned long    lastQuery    = 0UL; // Last read time, ms
+  static unsigned long    lastRead     = 0UL; // Last read time, ms
+  static double           tFilter;            // Modeled temp, F
+
+  // Sequencing
+  filter = ((now-lastFilter)>=FILTER_DELAY) || reset>0;
+  if ( filter )
+  {
+    tFilter     = float(now-lastFilter)/1000.0;
+    if ( debug > 3 ) Serial.printf("Filter update=%7.3f\n", tFilter);
+    lastFilter    = now;
+  }
+
+  model     = ((now-lastModel)>=MODEL_DELAY) || reset>0;
+  if ( model )
+  {
+    if ( debug > 3 ) Serial.printf("Model update=%7.3f\n", float(now-lastModel)/1000.0);
+    lastModel    = now;
+  }
+
+  publish1  = ((now-lastPublish1) >= PUBLISH_DELAY*4);
+  if ( publish1 ) lastPublish1  = now;
+  publish2  = ((now-lastPublish2) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY);
+  if ( publish2 ) lastPublish2  = now;
+  publish3  = ((now-lastPublish3) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY*2);
+  if ( publish3 ) lastPublish3  = now;
+  publish4  = ((now-lastPublish4) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY*3);
+  if ( publish4 ) lastPublish4  = now;
+  publishAny  = publish1 || publish2 || publish3 || publish4;
+
+  read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishAny;
+  if ( read     ) lastRead      = now;
+
+  query   = ((now-lastQuery)>= QUERY_DELAY) && !read;
+  if ( query    ) lastQuery     = now;
+
+  display   = ((now-lastDisplay) >= DISPLAY_DELAY) && !query;
+  if ( display ) lastDisplay    = now;
+
 
   // Sample inputs
   past = now;
-  now = micros();
-  T = (now - past)/1e6;
+  now = millis();
+  T = (now - past)/1e3;
+  unsigned long deltaT = now - lastControl;
+  control = (deltaT>=CONTROL_DELAY) && !display;
+  if ( control  )
+  {
+    updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
+    lastControl   = now;
+  }
+
   // was_testing = testing;
   testing = load(reset, T, now);
   testing = testing;
@@ -174,24 +307,62 @@ void loop()
     delay ( bare_wait );
   }
   run_time += T;
-
-  // Initialize
-  reset = 0;
   if ( debug>3 ) { Serial.print(F("debug loop message here=")); Serial.println(F(", ")); };
 
+  // Read sensors
+  if ( read )
+  {
+    if ( !bare )
+    {
+      if ( debug>3 ) Serial.println(F("read"));
+      Wire.beginTransmission(TEMP_SENSOR);
+      Wire.endTransmission();
+      delay(40);
+      Wire.requestFrom(TEMP_SENSOR, 4);
+      Wire.write(byte(0));
+      uint8_t b   = Wire.read();
+      I2C_Status  = b >> 6;
+
+      // Honeywell conversion
+      int rawHum  = (b << 8) & 0x3f00;
+      rawHum |=Wire.read();
+      hum = roundf(rawHum / 163.83);
+      int rawTemp = (Wire.read() << 6) & 0x3fc0;
+      rawTemp |=Wire.read() >> 2;
+      Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + TEMPCAL; // convert to fahrenheit and calibrate
+    }
+    else
+    {
+      delay(41); // Usual I2C time
+      if ( reset>0 ) Ta_Sense = NOMSET;
+    }
+  }
+
   // Outputs
+  if ( control )
+  {
+    pot_write(cmd);
+    digitalWrite(led_pulse, toggle);
+    toggle = !toggle;
+    cmd += 1;
+    if (cmd>256) cmd=240;
+  }
+
+  // Publish
+  if ( publishAny && debug>3 )
+  {
+    if ( debug>3 ) Serial.println(F("publish"));
+  }
+
+  // Monitor
   if (debug>1)
   {
     serial_print_inputs(now, T);
     serial_print(cmd);
   }
-  pot_write(cmd);
-  digitalWrite(led_pulse, toggle);
-  toggle = !toggle;
-  delay(2000);
 
-  cmd += 1;
-  if (cmd>256) cmd=240;
+  // Initialize complete
+  reset = 0;
 
 } // loop
 
@@ -201,14 +372,17 @@ void serial_print_inputs(unsigned long now, double T)
 {
   Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(",");
   Serial.print(T, 6); Serial.print(",");  
+  Serial.print(I2C_Status, DEC); Serial.print(",");
+  Serial.print(Ta_Sense, 1); Serial.print(",");
+  Serial.print(hum, 1); Serial.print(",");
 }
 
 // Normal serial print
-void serial_print(int i)
+void serial_print(int cmd)
 {
   if (debug > 0)
   {
-    Serial.print(i, DEC); Serial.print(F(", "));   Serial.println(F(""));
+    Serial.print(cmd, DEC); Serial.print(F(", "));   Serial.println(F(""));
   }
   else
   {
@@ -217,7 +391,7 @@ void serial_print(int i)
 }
 
 // Load and filter
-boolean load(int reset, double T, unsigned int time_us)
+boolean load(int reset, double T, unsigned int time_ms)
 {
   static boolean done_testing = false;
 

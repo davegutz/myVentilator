@@ -32,9 +32,22 @@
 #undef PHOTON
 #endif
 
-//#define BARE                // Run without peripherals
-const int8_t debug = 3;     // Level of debug printing (3)
-
+//#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
+//#define BARE                  // Run without peripherals
+const int8_t debug = 3;         // Level of debug printing (3)
+#define TEMP_SENSOR 0x27        // Temp sensor bus address (0x27)
+#define TEMPCAL -1              // Calibrate temp sense (-1), F
+#define ONE_DAY_MILLIS 86400000 // Number of milliseconds in one day (24*60*60*1000)
+#define NOMSET 68               // Nominal setpoint for modeling etc, F
+#define MINSET 50               // Minimum setpoint allowed (50), F
+#define MAXSET 72               // Maximum setpoint allowed (72), F
+#define CONTROL_DELAY    4000UL     // Control law wait, ms
+#define MODEL_DELAY      5000UL     // Model wait, ms
+#define PUBLISH_DELAY    30000UL    // Time between cloud updates (10000), ms
+#define READ_DELAY       5000UL     // Sensor read wait (5000, 100 for stress test), ms
+#define QUERY_DELAY      15000UL    // Web query wait (15000, 100 for stress test), ms
+#define DISPLAY_DELAY    300UL      // LED display scheduling frame time, ms
+#define FILTER_DELAY     5000UL             // In range of tau/4 - tau/3  * 1000, ms
 
 #ifdef BARE
 const boolean bare = true;  // Force continuous calibration mode to run with bare boards (false)
