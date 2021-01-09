@@ -44,11 +44,11 @@
   5-POA  = 
   6-POW  =
   7-POB  =
-  8-VDD  = D6 and pullup to 5V RAIL using 4.7k
+  8-VDD  = D7 and pullup to 5V RAIL using 4.7k
 
 * Honeywell temp/humidity Hardware Connections (Humidistat with temp SOIC  HIH6131-021-001)
   1-VCORE= 0.1uF to GND
-  2-VSS  = GND
+  2-VSS  = GND rail
   3-SCL  = D1
   4-SCA  = D0
   5-AL_H = NC
@@ -57,13 +57,18 @@
   8-VDD  = 3v3
 
 * Photon to Proto
-  GND to 2 GND RAILS
+  GND to 2 GND rails
   D0 4k7 3v3 jumper I2C pullup
   D0 4k7 3v3 jumper I2C pullup
   D2 4k7 D3 jumper
   VIN to 5V rail
   3v3 to 3v3 rail 
   micro USB to Serial Monitor on PC (either Particle Workbench monitor or CoolTerm) 
+
+* 1-wire (MAXIM DS18B20)  library at https://github.com/particle-iot/OneWireLibrary
+  Y-C   D6 4k7 pullup to 3v3
+  R-VDD 5V rail
+  B-GND GND rail
 
 * Elego power module
   5V jumper to 5V RAIL on "A-side" of Photon
@@ -97,29 +102,31 @@ using namespace std;
 #endif
 
 #include "constants.h"
-															   
+#include <OneWire.h>
+#include <DS18.h>
+														   
 // Global locals
 char buffer[256];           // Serial print buffer
 int hum = 0;                // Relative humidity integer value, %
 int I2C_Status = 0;         // Bus status
-double Ta_Sense = NOMSET;   // Sensed temp, F
+double Ta_Sense = NOMSET;   // Sensed ambient room temp, F
+double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
 bool webHold = false;       // Web permanence request
 int webDmd = 62;            // Web sched, F
+
+#ifdef PHOTON
+byte pin_1_wire = D6; //Blinks with each heartbeat
+byte vdd_supply = D7;  // Power the MCP4151
+#endif
 
 // Utilities
 void serial_print_inputs(unsigned long now, double run_time, double T);
 void serial_print(int cmd);
 int pot_write(int step);
 boolean load(int reset, double T, unsigned int time_ms);
-
-#ifdef PHOTON
-byte led_pulse = D7; //Blinks with each heartbeat
-byte vdd_supply = D6;  // Power the MCP4151
-#else
-byte led_pulse = 13; //Blinks with each heartbeat
-#endif
+DS18 sensor_plenum(pin_1_wire);
 
 #ifndef NO_CLOUD
 int particleHold(String command)
@@ -182,8 +189,6 @@ void setup()
     Wire.setSpeed(CLOCK_SPEED_100KHZ);
     Wire.begin();
 
-    // LEDs
-    pinMode(led_pulse, OUTPUT);
   }
 
   // Begin
@@ -204,7 +209,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,run_time,T,I2C_Status,Ta_Sense,hum,cmd")); Serial.println("");
+    Serial.print(F("flag,time_ms,run_time,T,I2C_Status,Tp_Sense,Ta_Sense,hum,cmd,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -315,10 +320,10 @@ void loop()
     if ( !bare )
     {
       if ( debug>3 ) Serial.println(F("read"));
-      Wire.beginTransmission(TEMP_SENSOR);
+      Wire.beginTransmission(TA_SENSOR);
       Wire.endTransmission();
       delay(40);
-      Wire.requestFrom(TEMP_SENSOR, 4);
+      Wire.requestFrom(TA_SENSOR, 4);
       Wire.write(byte(0));
       uint8_t b = Wire.read();
       I2C_Status = b >> 6;
@@ -326,10 +331,14 @@ void loop()
       // Honeywell conversion
       int rawHum  = (b << 8) & 0x3f00;
       rawHum |=Wire.read();
-      hum = roundf(rawHum / 163.83) + HUMCAL;
+      hum = roundf(rawHum / 163.83) + HW_HUMCAL;
       int rawTemp = (Wire.read() << 6) & 0x3fc0;
       rawTemp |=Wire.read() >> 2;
-      Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + TEMPCAL; // convert to fahrenheit and calibrate
+      Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + TA_TEMPCAL; // convert to fahrenheit and calibrate
+
+      // MAXIM conversion
+      if (sensor_plenum.read()) Tp_Sense = sensor_plenum.fahrenheit() + TP_TEMPCAL;
+
     }
     else
     {
@@ -342,7 +351,6 @@ void loop()
   if ( control )
   {
     pot_write(cmd);
-    digitalWrite(led_pulse, toggle);
     toggle = !toggle;
     cmd += 1;
     if (cmd>256) cmd=240;
@@ -370,12 +378,13 @@ void loop()
 // Inputs serial print
 void serial_print_inputs(unsigned long now, double run_time, double T)
 {
-  Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(",");
-  Serial.print(run_time, 3); Serial.print(",");
-  Serial.print(T, 6); Serial.print(",");  
-  Serial.print(I2C_Status, DEC); Serial.print(",");
-  Serial.print(Ta_Sense, 1); Serial.print(",");
-  Serial.print(hum, 1); Serial.print(",");
+  Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(", ");
+  Serial.print(run_time, 3); Serial.print(", ");
+  Serial.print(T, 6); Serial.print(", ");  
+  Serial.print(I2C_Status, DEC); Serial.print(", ");
+  Serial.print(Tp_Sense, 1); Serial.print(", ");
+  Serial.print(Ta_Sense, 1); Serial.print(", ");
+  Serial.print(hum, 1); Serial.print(", ");
 }
 
 // Normal serial print
