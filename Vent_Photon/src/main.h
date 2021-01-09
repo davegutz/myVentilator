@@ -320,13 +320,13 @@ void loop()
       delay(40);
       Wire.requestFrom(TEMP_SENSOR, 4);
       Wire.write(byte(0));
-      uint8_t b   = Wire.read();
-      I2C_Status  = b >> 6;
+      uint8_t b = Wire.read();
+      I2C_Status = b >> 6;
 
       // Honeywell conversion
       int rawHum  = (b << 8) & 0x3f00;
       rawHum |=Wire.read();
-      hum = roundf(rawHum / 163.83);
+      hum = roundf(rawHum / 163.83) + HUMCAL;
       int rawTemp = (Wire.read() << 6) & 0x3fc0;
       rawTemp |=Wire.read() >> 2;
       Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + TEMPCAL; // convert to fahrenheit and calibrate
@@ -355,7 +355,7 @@ void loop()
   }
 
   // Monitor
-  if (debug>1)
+  if ( debug>1 )
   {
     serial_print_inputs(now, run_time, T);
     serial_print(cmd);
@@ -381,7 +381,7 @@ void serial_print_inputs(unsigned long now, double run_time, double T)
 // Normal serial print
 void serial_print(int cmd)
 {
-  if (debug > 0)
+  if ( debug>0 )
   {
     Serial.print(cmd, DEC); Serial.print(F(", "));   Serial.println(F(""));
   }
@@ -392,6 +392,7 @@ void serial_print(int cmd)
 }
 
 // Load and filter
+// TODO:   move 'read' stuff here
 boolean load(int reset, double T, unsigned int time_ms)
 {
   static boolean done_testing = false;

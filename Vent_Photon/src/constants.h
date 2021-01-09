@@ -37,6 +37,7 @@
 const int8_t debug = 3;         // Level of debug printing (3)
 #define TEMP_SENSOR 0x27        // Temp sensor bus address (0x27)
 #define TEMPCAL -1              // Calibrate temp sense (-1), F
+#define HUMCAL -2               // Calibrate humidity sense (-2), %
 #define ONE_DAY_MILLIS 86400000 // Number of milliseconds in one day (24*60*60*1000)
 #define NOMSET 68               // Nominal setpoint for modeling etc, F
 #define MINSET 50               // Minimum setpoint allowed (50), F
