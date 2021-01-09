@@ -109,7 +109,7 @@ bool webHold = false;       // Web permanence request
 int webDmd = 62;            // Web sched, F
 
 // Utilities
-void serial_print_inputs(unsigned long now, double T);
+void serial_print_inputs(unsigned long now, double run_time, double T);
 void serial_print(int cmd);
 int pot_write(int step);
 boolean load(int reset, double T, unsigned int time_ms);
@@ -204,7 +204,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,T,I2C_Status,Ta_Sense,hum,cmd")); Serial.println("");
+    Serial.print(F("flag,time_ms,run_time,T,I2C_Status,Ta_Sense,hum,cmd")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -215,8 +215,8 @@ void setup()
 // Loop
 void loop()
 {
-  static unsigned long now = micros();      // Keep track of time
-  static unsigned long past = micros();     // Keep track of time
+  static unsigned long now = millis();      // Keep track of time
+  static unsigned long past = millis();     // Keep track of time
   static boolean toggle = false;            // Generate heartbeat
   static double run_time = 0;               // Time, seconds
   static int reset = 1;                     // Dynamic reset
@@ -357,7 +357,7 @@ void loop()
   // Monitor
   if (debug>1)
   {
-    serial_print_inputs(now, T);
+    serial_print_inputs(now, run_time, T);
     serial_print(cmd);
   }
 
@@ -368,9 +368,10 @@ void loop()
 
 
 // Inputs serial print
-void serial_print_inputs(unsigned long now, double T)
+void serial_print_inputs(unsigned long now, double run_time, double T)
 {
   Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(",");
+  Serial.print(run_time, 3); Serial.print(",");
   Serial.print(T, 6); Serial.print(",");  
   Serial.print(I2C_Status, DEC); Serial.print(",");
   Serial.print(Ta_Sense, 1); Serial.print(",");
