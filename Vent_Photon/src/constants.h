@@ -43,12 +43,12 @@ const int8_t debug = 3;         // Level of debug printing (3)
 #define NOMSET 68               // Nominal setpoint for modeling etc, F
 #define MINSET 50               // Minimum setpoint allowed (50), F
 #define MAXSET 72               // Maximum setpoint allowed (72), F
-#define CONTROL_DELAY    5000UL     // Control law wait, ms (5000)
+#define CONTROL_DELAY    500UL     // Control law wait, ms (5000)
 #define MODEL_DELAY      5000UL     // Model wait, ms (5000)
 #define PUBLISH_DELAY    30000UL    // Time between cloud updates (30000), ms
-#define READ_DELAY       5000UL     // Sensor read wait (5000, 100 for stress test), ms
+#define READ_DELAY       500UL     // Sensor read wait (5000, 100 for stress test), ms
 #define QUERY_DELAY      15000UL    // Web query wait (15000, 100 for stress test), ms
-#define DISPLAY_DELAY    300UL      // LED display scheduling frame time, ms (300)
+#define DISPLAY_DELAY    500UL      // Serial display scheduling frame time, ms (300)
 #define FILTER_DELAY     5000UL     // In range of tau/4 - tau/3  * 1000, ms (5000)
 
 #ifdef BARE
