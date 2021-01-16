@@ -56,23 +56,26 @@
 article Photon boards have 9 PWM pins: D0, D1, D2, D3, A4, A5, WKP, RX, TX
 
 * PWM Driver Circuit
-  - npn1 (2n2222)
-    C - B of npn2 and L of 98k that goes to 10V
-    B - H of 4k7 ohm resistor
+  - npn1 (2n2222A)
+    C - B of npn2 and L of 4k7 that goes to 10V
+    B - H of 10k
     E - GND Rail
-  - npn2 (2n2222)
-    C - ECMF C and 1N4148 anode?? and 270 ohm resistor that goes to 10V
-    B - C of npn1 and 98k that goes to 10V
+  - npn2 (2n2222A)
+    C - ECMF C and diode anode?? and pullup that goes to 10V
+    B - C of npn1 and 4k7 that goes to 10V
     E - GND Rail
-  - 270 ohm resistor PWM pull up
+  - pullup 4k7
     H - ECMF 10V
-    L - C of 2n2222
-  - 4k7 ohm resistor npn base driver
+    L - C of npn2 and H of diode
+  - 10k1 npn1 base driver
     H - Photon D2
-    L - C of 2n2222-1
-  - 1N4148 signal diode to protect 2n2222 from load transients
-    Anode - ECMF C
-    Cathode - GND Rail
+    L - B of npn1
+  - 10k2 npn2 base driver
+    H - C of npn1
+    L - B of npn2
+  - diode (1N4148) signal diode to protect npn2 from load transients
+    Anode?? - ECMF C
+    Cathode?? - GND Rail
 
 * Tach Voltage Divider Circuit
   - 200K ohm resistor
@@ -100,8 +103,7 @@ article Photon boards have 9 PWM pins: D0, D1, D2, D3, A4, A5, WKP, RX, TX
   A2  = POWa of analog POT
   D0  = 4-SCA of Honeywell and 4k7 3v3 jumper I2C pullup
   D1  = 3-SCL of Honeywell and 4k7 3v3 jumper I2C pullup
-  D2  = H of 300k ohm resistor for PWM
-  D5  = H of 300k ohm resistor
+  D2  = H of 10k1 for PWM 5kHz
   D6  = Y-C of DS18 for Tp and 4k7 3v3 jumper pullup
   VIN = 5V Rail 1A maximum and 0.1uF to GND and 100uF to GND
   3v3 = 3v3 rail out
