@@ -5,7 +5,7 @@
   * to control an ECMF-150 TerraBloom brushless DC servomotor fan.
   * 
   * By:  Dave Gutz January 2021
-  * 07-Jan-2021   Tinker version
+  * 07-Jan-2021   A tinker version
   * 
 //
 // MIT License
@@ -30,6 +30,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+****digipot not used
 * Found MCP4151 POT how to at
   https://community.particle.io/t/photon-controlling-5v-output-using-mcp4151-pot-and-photon-spi-api/25001/2
 
@@ -52,8 +53,6 @@
   POHa    ECMF R 10 V supply
   POWa    Photon A2 (BOM = ECMF C Blue Control Signal)
   POLa    ???System GND to GND Rail
-
-article Photon boards have 9 PWM pins: D0, D1, D2, D3, A4, A5, WKP, RX, TX
 
 * PWM Driver Circuit
   - npn1 (2n2222A)
@@ -98,6 +97,7 @@ article Photon boards have 9 PWM pins: D0, D1, D2, D3, A4, A5, WKP, RX, TX
   8-VDD  = 3v3
 
 * Particle Photon 1A max
+* Particle Photon boards have 9 PWM pins: D0, D1, D2, D3, A4, A5, WKP, RX, TX
   GND = to 2 GND rails
   A1  = L of 200k ohm from ECMF Y Tach and H of 100k ohm to ground (0-3.3v from 0-10v)
   A2  = POWa of analog POT
@@ -303,6 +303,7 @@ void loop()
   bool publish4;           // Publish, T/F
   bool query;              // Query schedule and OAT, T/F
   bool read;               // Read, T/F
+  bool serial;             // Serial print, T/F
   static unsigned long    lastControl  = 0UL; // Last control law time, ms
   static unsigned long    lastDisplay  = 0UL; // Las display time, ms
   static unsigned long    lastFilter   = 0UL; // Last filter time, ms
@@ -313,6 +314,7 @@ void loop()
   static unsigned long    lastPublish4 = 0UL; // Last publish time, ms
   static unsigned long    lastQuery    = 0UL; // Last read time, ms
   static unsigned long    lastRead     = 0UL; // Last read time, ms
+  static unsigned long    lastSerial   = 0UL; // Last Serial print time, ms
   static double           tFilter;            // Modeled temp, F
 
   // Sequencing
@@ -350,6 +352,8 @@ void loop()
   display   = ((now-lastDisplay) >= DISPLAY_DELAY) && !query;
   if ( display ) lastDisplay    = now;
 
+  serial   = ((now-lastSerial) >= SERIAL_DELAY) && !query;
+  if ( serial ) lastSerial    = now;
 
   // Sample inputs
   past = now;
@@ -409,7 +413,7 @@ void loop()
   }
 
   // Monitor
-  if ( debug>1 && display )
+  if ( debug>1 && serial )
   {
     serial_print_inputs(now, run_time, T);
     serial_print(duty);
