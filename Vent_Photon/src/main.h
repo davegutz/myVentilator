@@ -52,7 +52,7 @@
 * Pot Analog Connections
   POHa    ECMF R 10 V supply
   POWa    Photon A2 (BOM = ECMF C Blue Control Signal)
-  POLa    ???System GND to GND Rail
+  POLa    System GND to GND Rail
 
 * PWM Driver Circuit
   - npn1 (2n2222A)
@@ -139,8 +139,7 @@
   3.  Start CoolTerm_0.stc
 
   Requirements:
-  1.  Wire digital POT in parallel with supplied 10K hardware POT.
-  2.  When Elego power off, digital POT off and digital POT resistance = open circuit
+  1.  
 
 */
 
@@ -180,7 +179,8 @@ byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
 pin_t pwm_pin = D2;         // Power the PWM transistor base via 300k resistor
 byte status_led = D7;       // On-board led
 byte tach_sense = A1;       // Sense ECMF speed
-byte pot_sense = A2;        // Sense Pot
+byte pot_trim = A2;         // Trim Pot
+byte pot_control = A3;      // Control Pot
 #endif
 
 // Utilities
@@ -482,8 +482,9 @@ boolean load(int reset, double T, unsigned int time_ms)
     if (sensor_plenum.read()) Tp_Sense = sensor_plenum.fahrenheit() + TP_TEMPCAL;
 
     // Pot input
-    int raw_pot = analogRead(pot_sense);
-    pcnt_pot = double(raw_pot)/40.96;
+    int raw_pot_trim = analogRead(pot_trim);
+    int raw_pot_control = analogRead(pot_control);
+    pcnt_pot = max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*1.5);
 
     // Tach input
     int raw_tach = analogRead(tach_sense);
