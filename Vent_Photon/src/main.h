@@ -177,7 +177,7 @@ Make it yourself.   It should look like this, with your personal authorizations:
 														   
 // Global locals
 char buffer[256];           // Serial print buffer
-int hum = 0;                // Relative humidity integer value, %
+int hum = 68;               // Relative humidity integer value, %
 int I2C_Status = 0;         // Bus status
 double Ta_Sense = NOMSET;   // Sensed ambient room temp, F
 double Tp_Sense = NOMSET;   // Sensed plenum temp, F
@@ -209,7 +209,12 @@ bool reco;                  // Indicator of recovering on cold days by shifting 
 enum Mode {POT, WEB, SCHD}; // To keep track of mode
 Mode controlMode = POT;     // Present control mode
 const int EEPROM_ADDR = 1;  // Flash address
-
+#ifndef NO_WEATHER_HOOK
+  int                         badWeatherCall  = 0;  // webhook lookup counter
+  long                        updateweatherhour;    // Last hour weather updated
+  bool                 weatherGood;          // webhook OAT lookup successful, T/F
+#endif
+double                tempf;                // webhook OAT, deg F
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -231,6 +236,9 @@ int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(int t);
 void saveTemperature(const int set, const int webDmd, const int held, const int addr);
+void gotWeatherData(const char *name, const char *data);
+void getWeather(void);
+String tryExtractString(String str, const char* start, const char* end);
 
 
 // Setup
@@ -253,12 +261,28 @@ void setup()
     pinMode(pwm_pin, OUTPUT);
 
     // I2C
-    Wire.setSpeed(CLOCK_SPEED_100KHZ);
-    Wire.begin();
-
+    if ( !bare )
+    {
+      Wire.setSpeed(CLOCK_SPEED_100KHZ);
+      Wire.begin();
+    }
     // Initialize output (255 = off)
     pwm_write(duty);
   }
+  else
+  {
+    // Status
+    pinMode(status_led, OUTPUT);
+    digitalWrite(status_led, LOW);
+  }
+  
+
+
+  // OAT
+  // Lets listen for the hook response
+  #ifndef NO_WEATHER_HOOK
+    Particle.subscribe("hook-response/get_weather", gotWeatherData, MY_DEVICES);
+  #endif
 
   // Begin
   Particle.connect();
@@ -367,7 +391,7 @@ void loop()
   now = millis();
   T = (now - past)/1e3;
   unsigned long deltaT = now - lastControl;
-//  control = (deltaT>=CONTROL_DELAY) && !display;
+  //  control = (deltaT>=CONTROL_DELAY) && !display;
   control = (deltaT>=CONTROL_DELAY) || reset;
   if ( control  )
   {
@@ -500,6 +524,8 @@ boolean load(int reset, double T, unsigned int time_ms)
   }
   else
   {
+    int raw_pot_control = analogRead(pot_control);
+    pcnt_pot = double(raw_pot_control)/40.96;
   }
 
   // Built-in-test logic.   Run until finger detected
@@ -530,8 +556,8 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
 {
   char  tmpsStr[STAT_RESERVE];
   static int lastChangedWebDmd = webDmd;
-  sprintf(tmpsStr, "|%s|CALL %d|SET %4.1f|TEMP %7.3f|TEMPC %7.3f|HUM %d|HELD %d|T %5.2f|POT %d|WEB %d|SCH %d|OAT %4.1f|TMOD %7.3f|REJH %6.3f|%c", \
-    hmString.c_str(), call, callCount*1+set-HYST, Ta_Sense, tempComp, hum, held, updateTime, potDmd, lastChangedWebDmd, schdDmd, OAT, Ta_Obs, rejectHeat*200, '\0');
+  sprintf(tmpsStr, "|%s|DUTY %d|SET %4.1f|TEMP %7.3f|HUM %d|T %5.2f|WEB %d|OAT %4.1f|TMOD %7.3f|%c", \
+    hmString.c_str(), int(duty), callCount*1+set-HYST, Ta_Sense, hum, updateTime, lastChangedWebDmd, OAT, Ta_Obs, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
@@ -543,8 +569,8 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
     unsigned min = (nowSec%3600)/60;
     unsigned hours = (nowSec%86400)/3600;
     sprintf(publishString,"%u:%u:%u",hours,min,sec);
-    // Spark.publish("Uptime",publishString);
-    // Spark.publish("stat", tmpsStr);
+    // Particle.publish("Uptime",publishString);
+    // Particle.publish("stat", tmpsStr);
     Particle.publish("Uptime",publishString);
     Particle.publish("stat", tmpsStr);
     #ifndef NO_BLYNK
@@ -674,3 +700,118 @@ void saveTemperature(const int set, const int webDmd, const int held, const int 
     EEPROM.put(addr, values);
 }
 
+
+
+//Updates Weather Forecast Data
+#ifndef NO_WEATHER_HOOK
+void getWeather()
+{
+  // Don't check if same hour
+  if (Time.hour() == updateweatherhour)
+  {
+    if (debug>2 && weatherGood) Serial.printf("Weather up to date, tempf=%f\n", tempf);
+    return;
+  }
+
+  if (debug>2)
+  {
+    Serial.print("Requesting Weather from webhook...");
+    Serial.flush();
+  }
+  weatherGood = false;
+  // publish the event that will trigger our webhook
+  Particle.publish("get_weather");
+
+  unsigned long wait = millis();
+  //wait for subscribe to kick in or 0.9 secs
+  while (!weatherGood && (millis() < wait + WEATHER_WAIT))
+  {
+    //Tells the core to check for incoming messages from partile cloud
+    Particle.process();
+    delay(50);
+  }
+  if (!weatherGood)
+  {
+    if (debug>3) Serial.print("Weather update failed.  ");
+    badWeatherCall++;
+    if (badWeatherCall > 2)
+    {
+      //If 3 webhook calls fail in a row, Print fail
+      if (debug>0) Serial.println("Webhook Weathercall failed!");
+      badWeatherCall = 0;
+    }
+  }
+  else
+  {
+    badWeatherCall = 0;
+  }
+} //End of getWeather function
+
+
+// This function will get called when weather data comes in
+void gotWeatherData(const char *name, const char *data)
+{
+  // Important note!  -- Right now the response comes in 512 byte chunks.
+  //  This code assumes we're getting the response in large chunks, and this
+  //  assumption breaks down if a line happens to be split across response chunks.
+  //
+  // Sample data:
+  //  <location>Minneapolis, Minneapolis-St. Paul International Airport, MN</location>
+  //  <weather>Overcast</weather>
+  //  <temperature_string>26.0 F (-3.3 C)</temperature_string>
+  //  <temp_f>26.0</temp_f>
+  String str          = String(data);
+  String locationStr  = tryExtractString(str, "<location>",     "</location>");
+  String weatherStr   = tryExtractString(str, "<weather>",      "</weather>");
+  String tempStr      = tryExtractString(str, "<temp_f>",       "</temp_f>");
+  String windStr      = tryExtractString(str, "<wind_string>",  "</wind_string>");
+
+  if (locationStr != "" && debug>3) {
+    if(debug>3) Serial.println("");
+    Serial.println("At location: " + locationStr);
+  }
+  if (weatherStr != "" && debug>3) {
+    Serial.println("The weather is: " + weatherStr);
+  }
+  if (tempStr != "") {
+    weatherGood = true;
+    #ifndef TESTING_WEATHER
+      updateweatherhour = Time.hour();  // To check once per hour
+    #endif
+    tempf = atof(tempStr);
+    if (debug>2)
+    {
+      if (debug<4) Serial.println("");
+      Serial.println("The temp is: " + tempStr + String(" *F"));
+      Serial.flush();
+      Serial.printf("tempf=%f\n", tempf);
+      Serial.flush();
+    }
+  }
+  if (windStr != "" && debug>3) {
+    Serial.println("The wind is: " + windStr);
+  }
+}
+
+
+// Returns any text found between a start and end string inside 'str'
+// example: startfooend  -> returns foo
+String tryExtractString(String str, const char* start, const char* end)
+{
+  if (str == "")
+  {
+    return "";
+  }
+  int idx = str.indexOf(start);
+  if (idx < 0)
+  {
+    return "";
+  }
+  int endIdx = str.indexOf(end);
+  if (endIdx < 0)
+  {
+    return "";
+  }
+  return str.substring(idx + strlen(start), endIdx);
+}
+#endif
