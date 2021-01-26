@@ -32,8 +32,18 @@
 #undef PHOTON
 #endif
 
+// Disable flags if needed for debugging, usually commented
+//#define BARE_PHOTON           // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+//#define NO_WEATHER_HOOK       // Turn off webhook weather lookup.  Will get default OAT = 30F
+//#define WEATHER_BUG           // Turn on bad weather return for debugging
+//#define NO_BLYNK              // Turn off Blynk functions.  Interact using Particle cloud
 //#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
 //#define BARE                  // Run without peripherals
+
+// Test feature usually commented
+//#define  FAKETIME                         // For simulating rapid time passing of schedule
+
+// Constants always defined
 const int8_t debug = 3;         // Level of debug printing (3)
 #define TA_SENSOR 0x27          // Ambient room Honeywell temp sensor bus address (0x27)
 #define TP_TEMPCAL 0            // Maxim 1-wire plenum temp sense calibrate (0), F
@@ -50,7 +60,9 @@ const int8_t debug = 3;         // Level of debug printing (3)
 #define QUERY_DELAY      15000UL    // Web query wait (15000, 100 for stress test), ms
 #define DISPLAY_DELAY    500UL      // Serial display scheduling frame time, ms (300)
 #define FILTER_DELAY     5000UL     // In range of tau/4 - tau/3  * 1000, ms (5000)
-#define SERIAL_DELAY     6000UL     // Serial print interval (5000)
+#define SERIAL_DELAY     2000UL     // Serial print interval (5000)
+#define STAT_RESERVE     150        // Space to reserve for status string publish
+#define HYST             0.75       // Heat control law hysteresis (0.75), F
 
 #ifdef BARE
 const boolean bare = true;  // Force continuous calibration mode to run with bare boards (false)

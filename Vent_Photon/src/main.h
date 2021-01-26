@@ -157,6 +157,21 @@ using namespace std;
 #endif
 
 #include "constants.h"
+#include "myAuth.h"
+/* This file myAuth.h is not in Git repository because it contains personal information.
+Make it yourself.   It should look like this, with your personal authorizations:
+(Note:  you don't need a valid number for one of the blynkAuth if not using it.)
+#ifndef BARE_PHOTON
+  const   String      blynkAuth     = "4f1de4949e4c4020882efd3e61XXX6cd"; // Photon thermostat
+#else
+  const   String      blynkAuth     = "d2140898f7b94373a78XXX158a3403a1"; // Bare photon
+#endif
+*/
+// Dependent includes.   Easier to debug code if remove unused include files
+#ifndef NO_BLYNK
+  #include "blynk.h"
+  #include "BlynkHandlers.h"
+#endif
 #include <OneWire.h>
 #include <DS18.h>
 														   
@@ -173,6 +188,28 @@ int webDmd = 62;            // Web sched, F
 double pcnt_pot = 0;        // Potentiometer read, % of 0-10v
 double pcnt_tach = 0;       // Tach read, % of 0-10v
 uint32_t duty = 0;          // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
+// Global locals for Blynk TODO:  simplify
+String hmString = "00:00";  // time, hh:mm
+bool call = false;          // Heat demand to relay control
+double callCount;           // Floating point of bool call for calculation
+int set = 62;               // Selected sched, F
+double tempComp;            // Sensed compensated temp, F
+bool held = false;          // Web toggled permanent and acknowledged
+int potDmd = 0;             // Pot value, deg F
+int schdDmd = 62;           // Sched raw value, F
+double OAT = 30;            // Outside air temperature, F
+double      Ta_Obs          = 62;   // Modeled air temp, F
+double rejectHeat = 0.0;    // Adjustment to embedded  model to match sensor, F/sec
+#ifndef NO_PARTICLE
+  String statStr("WAIT..."); // Status string
+#endif
+char publishString[40];     // For uptime recording
+double controlTime = 0.0;   // Decimal time, hour
+bool reco;                  // Indicator of recovering on cold days by shifting schedule
+enum Mode {POT, WEB, SCHD}; // To keep track of mode
+Mode controlMode = POT;     // Present control mode
+const int EEPROM_ADDR = 1;  // Flash address
+
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -189,46 +226,16 @@ void serial_print(uint32_t duty);
 uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, unsigned int time_ms);
 DS18 sensor_plenum(pin_1_wire);
-
-#ifndef NO_CLOUD
-int particleHold(String command)
-{
-  if (command == "HOLD")
-  {
-    webHold = true;
-    return 1;
-  }
-  else
-  {
-     webHold = false;
-     return 0;
-  }
-}
-
-
-int particleSet(String command)
-{
-  int possibleSet = atoi(command);
-  if (possibleSet >= MINSET && possibleSet <= MAXSET)
-  {
-      webDmd = possibleSet;
-      return possibleSet;
-  }
-  else return -1;
-}
-#endif
+void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4);
+int particleHold(String command);
+int particleSet(String command);
+int setSaveDisplayTemp(int t);
+void saveTemperature(const int set, const int webDmd, const int held, const int addr);
 
 
 // Setup
 void setup()
 {
-
-#ifdef PHOTON
-  // WiFi.disconnect();
-  // delay(1000);
-  // WiFi.off();
-  // delay(1000);
-#endif
 
   // Serial
   Serial.begin(115200); // initialize serial communication at 115200 bits per second:
@@ -410,7 +417,8 @@ void loop()
   if ( publishAny && debug>3 )
   {
     if ( debug>3 ) Serial.println(F("publish"));
-  }
+    publish(now, publish1, publish2, publish3, publish4);
+  } // publishAny
 
   // Monitor
   if ( debug>1 && serial )
@@ -517,3 +525,152 @@ uint32_t pwm_write(uint32_t duty)
     analogWrite(pwm_pin, duty, pwm_frequency);
     return duty;
 }
+
+void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4)
+{
+  char  tmpsStr[STAT_RESERVE];
+  static int lastChangedWebDmd = webDmd;
+  sprintf(tmpsStr, "|%s|CALL %d|SET %4.1f|TEMP %7.3f|TEMPC %7.3f|HUM %d|HELD %d|T %5.2f|POT %d|WEB %d|SCH %d|OAT %4.1f|TMOD %7.3f|REJH %6.3f|%c", \
+    hmString.c_str(), call, callCount*1+set-HYST, Ta_Sense, tempComp, hum, held, updateTime, potDmd, lastChangedWebDmd, schdDmd, OAT, Ta_Obs, rejectHeat*200, '\0');
+  #ifndef NO_PARTICLE
+    statStr = String(tmpsStr);
+  #endif
+  if ( debug>1 ) Serial.println(tmpsStr);
+  if ( Particle.connected() )
+  {
+    unsigned nowSec = now/1000UL;
+    unsigned sec = nowSec%60;
+    unsigned min = (nowSec%3600)/60;
+    unsigned hours = (nowSec%86400)/3600;
+    sprintf(publishString,"%u:%u:%u",hours,min,sec);
+    // Spark.publish("Uptime",publishString);
+    // Spark.publish("stat", tmpsStr);
+    Particle.publish("Uptime",publishString);
+    Particle.publish("stat", tmpsStr);
+    #ifndef NO_BLYNK
+      if ( publish1 )
+      {
+        if (debug>4) Serial.printf("Blynk write1\n");
+        Blynk.virtualWrite(V0,  call);
+        Blynk.virtualWrite(V2,  Ta_Sense);
+        Blynk.virtualWrite(V3,  hum);
+        Blynk.virtualWrite(V4,  tempComp);
+        Blynk.virtualWrite(V5,  held);
+      }
+      if ( publish2 )
+      {
+        if (debug>4) Serial.printf("Blynk write2\n");
+        Blynk.virtualWrite(V7,  controlTime);
+        Blynk.virtualWrite(V8,  updateTime);
+        Blynk.virtualWrite(V9,  potDmd);
+        Blynk.virtualWrite(V10, lastChangedWebDmd);
+        Blynk.virtualWrite(V11, set);
+      }
+      if ( publish3 )
+      {
+        if (debug>4) Serial.printf("Blynk write3\n");
+        Blynk.virtualWrite(V12, schdDmd);
+        Blynk.virtualWrite(V13, Ta_Sense);
+        Blynk.virtualWrite(V14, I2C_Status);
+        Blynk.virtualWrite(V15, hmString);
+        Blynk.virtualWrite(V16, callCount*1+set-HYST);
+      }
+      if ( publish4 )
+      {
+        if (debug>4) Serial.printf("Blynk write4\n");
+        Blynk.virtualWrite(V17, reco);
+        Blynk.virtualWrite(V18, OAT);
+        Blynk.virtualWrite(V19, Ta_Obs);
+        Blynk.virtualWrite(V20, rejectHeat*200);
+      }
+    #endif
+  }
+  else
+  {
+    if ( debug>2 ) Serial.printf("Particle not connected....connecting\n");
+    Particle.connect();
+    numTimeouts++;
+  }
+
+}
+
+
+// Process a new temperature setting.   Display and save it.
+int setSaveDisplayTemp(int t)
+{
+    set = t;
+    switch(controlMode)
+    {
+        case POT:   
+           //displayTemperature(set);
+           //displayCount=0;
+           break;
+        case WEB:   break;
+        case SCHD:  break;
+    }
+    saveTemperature(set, webDmd, held, EEPROM_ADDR);
+    return set;
+}
+
+
+#ifndef NO_BLYNK
+// Attach a Slider widget to the Virtual pin 4 IN in your Blynk app
+// - and control the web desired temperature.
+// Note:  there are separate virtual IN and OUT in Blynk.
+BLYNK_WRITE(V4) {
+    if (param.asInt() > 0)
+    {
+        webDmd = (int)param.asDouble();
+    }
+}
+#endif
+
+
+#ifndef NO_PARTICLE
+int particleSet(String command)
+{
+  int possibleSet = atoi(command);
+  if (possibleSet >= MINSET && possibleSet <= MAXSET)
+  {
+      webDmd = possibleSet;
+      return possibleSet;
+  }
+  else return -1;
+}
+#endif
+
+
+#ifndef NO_BLYNK
+// Attach a switch widget to the Virtual pin 6 in your Blynk app - and demand continuous web control
+// Note:  there are separate virtual IN and OUT in Blynk.
+BLYNK_WRITE(V6) {
+    webHold = param.asInt();
+}
+#endif
+#ifndef NO_PARTICLE
+int particleHold(String command)
+{
+  if (command == "HOLD")
+  {
+    webHold = true;
+    return 1;
+  }
+  else
+  {
+     webHold = false;
+     return 0;
+  }
+}
+#endif
+
+
+// Save temperature setpoint to flash for next startup.   During power
+// failures the thermostat will reset to the condition it was in before
+// the power failure.   Filter initialized to sensed temperature (lose anticipation briefly
+// following recovery from power failure).
+void saveTemperature(const int set, const int webDmd, const int held, const int addr)
+{
+    uint8_t values[4] = { (uint8_t)set, (uint8_t)held, (uint8_t)webDmd, (uint8_t)(roundf(Ta_Obs)) };
+    EEPROM.put(addr, values);
+}
+
