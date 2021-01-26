@@ -192,13 +192,13 @@ uint32_t duty = 0;          // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
 String hmString = "00:00";  // time, hh:mm
 bool call = false;          // Heat demand to relay control
 double callCount;           // Floating point of bool call for calculation
-int set = 62;               // Selected sched, F
+int set = 65;               // Selected sched, F
 double tempComp;            // Sensed compensated temp, F
 bool held = false;          // Web toggled permanent and acknowledged
 int potDmd = 0;             // Pot value, deg F
 int schdDmd = 62;           // Sched raw value, F
 double OAT = 30;            // Outside air temperature, F
-double      Ta_Obs          = 62;   // Modeled air temp, F
+double Ta_Obs = 0;          // Modeled air temp, F
 double rejectHeat = 0.0;    // Adjustment to embedded  model to match sensor, F/sec
 #ifndef NO_PARTICLE
   String statStr("WAIT..."); // Status string
@@ -239,7 +239,7 @@ void saveTemperature(const int set, const int webDmd, const int held, const int 
 void gotWeatherData(const char *name, const char *data);
 void getWeather(void);
 String tryExtractString(String str, const char* start, const char* end);
-
+double  decimalTime(unsigned long *currentTime, char* tempStr);
 
 // Setup
 void setup()
@@ -275,8 +275,6 @@ void setup()
     pinMode(status_led, OUTPUT);
     digitalWrite(status_led, LOW);
   }
-  
-
 
   // OAT
   // Lets listen for the hook response
@@ -291,13 +289,21 @@ void setup()
     Particle.function("SET",  particleSet);
   #endif
 
+  #ifndef NO_BLYNK
+    Blynk.begin(blynkAuth.c_str());
+  #endif
+  #ifndef NO_WEATHER_HOOK
+    if ( debug>0 )Serial.print("\n\nInitializing weather...");
+    Serial.flush();
+    getWeather();
+  #endif
   
 
-#ifdef PHOTON
-  if ( debug>1 ) { sprintf(buffer, "Particle Photon.  bare = %d,\n", bare); Serial.print(buffer); };
-#else
-  if ( debug>1 ) { sprintf(buffer, "Arduino Mega2560.  bare = %d,\n", bare); Serial.print(buffer); };
-#endif
+  #ifdef PHOTON
+    if ( debug>1 ) { sprintf(buffer, "Particle Photon.  bare = %d,\n", bare); Serial.print(buffer); };
+  #else
+    if ( debug>1 ) { sprintf(buffer, "Arduino Mega2560.  bare = %d,\n", bare); Serial.print(buffer); };
+  #endif
 
   // Header for debug print
   if ( debug>1 )
@@ -313,6 +319,7 @@ void setup()
 // Loop
 void loop()
 {
+  unsigned long currentTime;                // Time result
   static unsigned long now = millis();      // Keep track of time
   static unsigned long past = millis();     // Keep track of time
   static boolean toggle = false;            // Generate heartbeat
@@ -395,6 +402,9 @@ void loop()
   control = (deltaT>=CONTROL_DELAY) || reset;
   if ( control  )
   {
+    char  tempStr[8];                           // time, hh:mm
+    controlTime = decimalTime(&currentTime, tempStr);
+    hmString    = String(tempStr);
     updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
     lastControl   = now;
   }
@@ -421,12 +431,11 @@ void loop()
   // Read sensors
   if ( read )
   {
+    if ( debug>3 ) Serial.println(F("read"));
+    testing = load(reset, T, now);
     if ( !bare )
     {
-      if ( debug>3 ) Serial.println(F("read"));
-      testing = load(reset, T, now);
       testing = testing;
-
     }
     else
     {
@@ -556,8 +565,8 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
 {
   char  tmpsStr[STAT_RESERVE];
   static int lastChangedWebDmd = webDmd;
-  sprintf(tmpsStr, "|%s|DUTY %d|SET %4.1f|TEMP %7.3f|HUM %d|T %5.2f|WEB %d|OAT %4.1f|TMOD %7.3f|%c", \
-    hmString.c_str(), int(duty), callCount*1+set-HYST, Ta_Sense, hum, updateTime, lastChangedWebDmd, OAT, Ta_Obs, '\0');
+  sprintf(tmpsStr, "%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f|%c", \
+    hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, tempf, Ta_Obs, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
@@ -815,3 +824,42 @@ String tryExtractString(String str, const char* start, const char* end)
   return str.substring(idx + strlen(start), endIdx);
 }
 #endif
+
+
+// Convert time to decimal for easy lookup
+double decimalTime(unsigned long *currentTime, char* tempStr)
+{
+    Time.zone(GMT);
+    *currentTime = Time.now();
+    // Second Sunday Mar and First Sunday Nov; 2:00 am; crude DST handling
+    if ( USE_DST)
+    {
+      uint8_t month     = Time.month(*currentTime);
+      uint8_t day       = Time.day(*currentTime);
+      uint8_t dayOfWeek = Time.weekday(*currentTime);     // 1-7
+      uint8_t hours     = Time.hour(*currentTime);
+      if (  month>2   && month<12 &&
+        !(month==3  && ((day-dayOfWeek)<7 ) && hours>1) &&  // <second Sunday Mar
+        !(month==11 && ((day-dayOfWeek)>=0) && hours>0) )  // >=first Sunday Nov
+        {
+          Time.zone(GMT+1);
+          *currentTime = Time.now();
+        }
+    }
+    #ifndef FAKETIME
+        uint8_t dayOfWeek = Time.weekday(*currentTime)-1;  // 0-6
+        uint8_t hours     = Time.hour(*currentTime);
+        uint8_t minutes   = Time.minute(*currentTime);
+        uint8_t seconds   = Time.second(*currentTime);
+        if ( debug>5 ) Serial.printf("DAY %u HOURS %u\n", dayOfWeek, hours);
+    #else
+        // Rapid time passage simulation to test schedule functions
+        uint8_t dayOfWeek = (Time.weekday(*currentTime)-1)*7/6;// minutes = days
+        uint8_t hours     = Time.hour(*currentTime)*24/60; // seconds = hours
+        uint8_t minutes   = 0; // forget minutes
+        uint8_t seconds   = 0; // forget seconds
+    #endif
+    sprintf(tempStr, "%02u:%02u", hours, minutes);
+    return (float(dayOfWeek)*24.0 + float(hours) + float(minutes)/60.0 + \
+                        float(seconds)/3600.0);  // 0-6 days and 0 is Sunday
+}

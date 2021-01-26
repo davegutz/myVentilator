@@ -64,6 +64,8 @@ const int8_t debug = 5;         // Level of debug printing (3)
 #define STAT_RESERVE     150        // Space to reserve for status string publish (150)
 #define HYST             0.75       // Heat control law hysteresis (0.75), F
 #define WEATHER_WAIT     900UL      // Time to wait for weather webhook, ms (900UL)
+#define GMT              -5        // Enter time different to zulu (does not respect DST)
+#define USE_DST     1                       // Whether to apply DST or not, 0 or 1
 
 #ifdef BARE
 const boolean bare = true;  // Force continuous calibration mode to run with bare boards (false)
