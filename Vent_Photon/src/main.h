@@ -170,7 +170,7 @@ Make it yourself.   It should look like this, with your personal authorizations:
 // Dependent includes.   Easier to debug code if remove unused include files
 #ifndef NO_BLYNK
   #include "blynk.h"
-  #include "BlynkHandlers.h"
+  #include "Blynk/BlynkHandlers.h"
 #endif
 #include <OneWire.h>
 #include <DS18.h>

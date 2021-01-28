@@ -38,7 +38,7 @@
 //#define WEATHER_BUG           // Turn on bad weather return for debugging
 //#define NO_BLYNK              // Turn off Blynk functions.  Interact using Particle cloud
 //#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
-//#define BARE                  // Run without peripherals, except maybe a POT
+#define BARE                  // Run without peripherals, except maybe a POT
 
 // Test feature usually commented
 //#define  FAKETIME                         // For simulating rapid time passing of schedule
