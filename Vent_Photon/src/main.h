@@ -231,7 +231,7 @@ void serial_print(uint32_t duty);
 uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, unsigned int time_ms);
 DS18 sensor_plenum(pin_1_wire);
-void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4);
+void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4, bool publishP);
 int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(int t);
@@ -334,6 +334,7 @@ void loop()
   bool display;            // LED display sequence, T/F
   bool filter;             // Filter for temperature, T/F
   bool model;              // Run model, T/F
+  bool publishP;           // Particle publish, T/F
   bool publishAny;         // Publish, T/F
   bool publish1;           // Publish, T/F
   bool publish2;           // Publish, T/F
@@ -346,6 +347,7 @@ void loop()
   static unsigned long    lastDisplay  = 0UL; // Las display time, ms
   static unsigned long    lastFilter   = 0UL; // Last filter time, ms
   static unsigned long    lastModel    = 0UL; // Las model time, ms
+  static unsigned long    lastPublishP = 0UL; // Last publish time, ms
   static unsigned long    lastPublish1 = 0UL; // Last publish time, ms
   static unsigned long    lastPublish2 = 0UL; // Last publish time, ms
   static unsigned long    lastPublish3 = 0UL; // Last publish time, ms
@@ -371,6 +373,8 @@ void loop()
     lastModel    = now;
   }
 
+  publishP  = ((now-lastPublishP) >= PUBLISH_PARTICLE_DELAY);
+  if ( publishP ) lastPublishP  = now;
   publish1  = ((now-lastPublish1) >= PUBLISH_DELAY*4);
   if ( publish1 ) lastPublish1  = now;
   publish2  = ((now-lastPublish2) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY);
@@ -379,7 +383,7 @@ void loop()
   if ( publish3 ) lastPublish3  = now;
   publish4  = ((now-lastPublish4) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY*3);
   if ( publish4 ) lastPublish4  = now;
-  publishAny  = publish1 || publish2 || publish3 || publish4;
+  publishAny  = publish1 || publish2 || publish3 || publish4 || publishP;
 
   read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishAny;
   if ( read     ) lastRead      = now;
@@ -422,7 +426,7 @@ void loop()
   if ( control )
   {
     cmd = pcnt_pot;
-    duty = uint32_t(cmd*256.0/100.0);
+    duty = uint32_t(min(cmd*256.0/100.0, 100));
     pwm_write(duty);
     toggle = !toggle;
     digitalWrite(status_led, HIGH);
@@ -450,7 +454,7 @@ void loop()
   if ( publishAny && debug>3 )
   {
     if ( debug>3 ) Serial.println(F("publish"));
-    publish(now, publish1, publish2, publish3, publish4);
+    publish(now, publish1, publish2, publish3, publish4, publishP);
   } // publishAny
 
   // Monitor
@@ -514,18 +518,18 @@ boolean load(int reset, double T, unsigned int time_ms)
     // Honeywell conversion
     int rawHum  = (b << 8) & 0x3f00;
     rawHum |=Wire.read();
-    hum = roundf(rawHum / 163.83) + HW_HUMCAL;
+    hum = roundf(rawHum / 163.83) + (HW_HUMCAL);
     int rawTemp = (Wire.read() << 6) & 0x3fc0;
     rawTemp |=Wire.read() >> 2;
-    Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + TA_TEMPCAL; // convert to fahrenheit and calibrate
+    Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + (TA_TEMPCAL); // convert to fahrenheit and calibrate
 
     // MAXIM conversion 1-wire Tp plenum temperature
-    if (sensor_plenum.read()) Tp_Sense = sensor_plenum.fahrenheit() + TP_TEMPCAL;
+    if (sensor_plenum.read()) Tp_Sense = sensor_plenum.fahrenheit() + (TP_TEMPCAL);
 
     // Pot input
     int raw_pot_trim = analogRead(pot_trim);
     int raw_pot_control = analogRead(pot_control);
-    pcnt_pot = max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*1.5);
+    pcnt_pot = max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*0.6084);
 
     // Tach input
     int raw_tach = analogRead(tach_sense);
@@ -561,7 +565,7 @@ uint32_t pwm_write(uint32_t duty)
     return duty;
 }
 
-void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4)
+void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4, bool publishP)
 {
   char  tmpsStr[STAT_RESERVE];
   static int lastChangedWebDmd = webDmd;
@@ -573,15 +577,16 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
   if ( debug>1 ) Serial.println(tmpsStr);
   if ( Particle.connected() )
   {
-    unsigned nowSec = now/1000UL;
-    unsigned sec = nowSec%60;
-    unsigned min = (nowSec%3600)/60;
-    unsigned hours = (nowSec%86400)/3600;
-    sprintf(publishString,"%u:%u:%u",hours,min,sec);
-    // Particle.publish("Uptime",publishString);
-    // Particle.publish("stat", tmpsStr);
-    Particle.publish("Uptime",publishString);
-    Particle.publish("stat", tmpsStr);
+    if ( publishP ) 
+    {
+      unsigned nowSec = now/1000UL;
+      unsigned sec = nowSec%60;
+      unsigned min = (nowSec%3600)/60;
+      unsigned hours = (nowSec%86400)/3600;
+      sprintf(publishString,"%u:%u:%u",hours,min,sec);
+      Particle.publish("Uptime",publishString);
+      Particle.publish("stat", tmpsStr);
+    }
     #ifndef NO_BLYNK
       if ( publish1 )
       {
