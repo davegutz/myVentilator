@@ -7,35 +7,40 @@
  * @brief      Virtual pin utilities
  */
 
-//#include <Blynk/BlynkConfig.h>
-//#include <Blynk/BlynkHandlers.h>
-//#include <Blynk/BlynkDebug.h>
-#include "BlynkConfig.h"
-#include "BlynkHandlers.h"
-#include "BlynkDebug.h"
+#include <Blynk/BlynkConfig.h>
+#include <Blynk/BlynkHandlers.h>
+#include <Blynk/BlynkDebug.h>
 
 void BlynkNoOpCbk()
 {}
 
-void BlynkWidgetRead(BlynkReq& request)
+void BlynkWidgetRead(BlynkReq BLYNK_UNUSED &request)
 {
     BLYNK_LOG2(BLYNK_F("No handler for reading from pin "), request.pin);
 }
 
-void BlynkWidgetWrite(BlynkReq& request, const BlynkParam& param)
+void BlynkWidgetWrite(BlynkReq BLYNK_UNUSED &request, const BlynkParam BLYNK_UNUSED &param)
 {
     BLYNK_LOG2(BLYNK_F("No handler for writing to pin "), request.pin);
 }
 
-#define BLYNK_ON_READ_IMPL(pin)  void BlynkWidgetRead  ## pin (BlynkReq& req) \
+#define BLYNK_ON_READ_IMPL(pin)  void BlynkWidgetRead  ## pin (BlynkReq BLYNK_UNUSED &req) \
           __attribute__((weak, alias("BlynkWidgetRead")))
 
-#define BLYNK_ON_WRITE_IMPL(pin) void BlynkWidgetWrite ## pin (BlynkReq& req, const BlynkParam& param) \
+#define BLYNK_ON_WRITE_IMPL(pin) void BlynkWidgetWrite ## pin (BlynkReq BLYNK_UNUSED &req, const BlynkParam BLYNK_UNUSED &param) \
           __attribute__((weak, alias("BlynkWidgetWrite")))
 
 BLYNK_CONNECTED() __attribute__((weak, alias("BlynkNoOpCbk")));
 BLYNK_DISCONNECTED() __attribute__((weak, alias("BlynkNoOpCbk")));
 
+// Internal Virtual Pins
+BLYNK_ON_WRITE_IMPL(InternalPinACON);
+BLYNK_ON_WRITE_IMPL(InternalPinADIS);
+BLYNK_ON_WRITE_IMPL(InternalPinRTC);
+BLYNK_ON_WRITE_IMPL(InternalPinOTA);
+BLYNK_ON_WRITE_IMPL(InternalPinMETA);
+
+// Regular Virtual Pins
 BLYNK_ON_READ_IMPL(Default);
 BLYNK_ON_WRITE_IMPL(Default);
 
@@ -377,7 +382,7 @@ static const WidgetWriteHandler BlynkWriteHandlerVector[] BLYNK_PROGMEM = {
 
 WidgetReadHandler GetReadHandler(uint8_t pin)
 {
-    if (pin >= COUNT_OF(BlynkReadHandlerVector))
+    if (pin >= BLYNK_COUNT_OF(BlynkReadHandlerVector))
         return NULL;
 #ifdef BLYNK_HAS_PROGMEM
     return (WidgetReadHandler)pgm_read_word(&BlynkReadHandlerVector[pin]);
@@ -388,7 +393,7 @@ WidgetReadHandler GetReadHandler(uint8_t pin)
 
 WidgetWriteHandler GetWriteHandler(uint8_t pin)
 {
-    if (pin >= COUNT_OF(BlynkWriteHandlerVector))
+    if (pin >= BLYNK_COUNT_OF(BlynkWriteHandlerVector))
         return NULL;
 #ifdef BLYNK_HAS_PROGMEM
     return (WidgetWriteHandler)pgm_read_word(&BlynkWriteHandlerVector[pin]);

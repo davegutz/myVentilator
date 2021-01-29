@@ -10,12 +10,13 @@
 #ifndef WidgetTerminal_h
 #define WidgetTerminal_h
 
-#if !(defined(LINUX) || defined(MBED_LIBRARY_VERSION))
+#if defined(ARDUINO) && !(defined(LINUX) || defined(__MBED__))
+    #define BLYNK_USE_PRINT_CLASS
+#elif defined(SPARK) || defined(PARTICLE)
     #define BLYNK_USE_PRINT_CLASS
 #endif
 
-//#include <Blynk/BlynkApi.h>
-#include "BlynkApi.h"
+#include <Blynk/BlynkWidgetBase.h>
 
 #ifdef BLYNK_USE_PRINT_CLASS
     #if !(defined(SPARK) || defined(PARTICLE) || (PLATFORM_ID==88) || defined(ARDUINO_RedBear_Duo)) // 88 -> RBL Duo
@@ -25,14 +26,18 @@
 #endif
 
 class WidgetTerminal
+    : public BlynkWidgetBase
 #ifdef BLYNK_USE_PRINT_CLASS
-    : public Print
+    , public Print
 #endif
 {
 public:
-    WidgetTerminal(int vPin)
-        : mPin(vPin), mOutQty(0)
+    WidgetTerminal(uint8_t vPin)
+        : BlynkWidgetBase(vPin)
+        , mOutQty(0)
     {}
+
+    //virtual ~WidgetTerminal() {}
 
     virtual size_t write(uint8_t byte) {
         mOutBuf[mOutQty++] = byte;
@@ -42,40 +47,45 @@ public:
         return 1;
     }
 
-    void flush() {
+    virtual void flush() {
         if (mOutQty) {
             Blynk.virtualWriteBinary(mPin, mOutBuf, mOutQty);
             mOutQty = 0;
         }
+    }
+    
+    void clear() {
+        flush();
+        Blynk.virtualWrite(mPin, "clr");
     }
 
 #ifdef BLYNK_USE_PRINT_CLASS
 
     using Print::write;
 
-    size_t write(const void* buff, size_t len) {
+    virtual size_t write(const void* buff, size_t len) {
         return write((char*)buff, len);
     }
 
 #else
 
-    size_t write(const void* buff, size_t len) {
+    virtual size_t write(const void* buff, size_t len) {
         uint8_t* buf = (uint8_t*)buff;
-        while (len--) {
+        size_t left = len;
+        while (left--) {
             write(*buf++);
         }
         return len;
     }
 
-    size_t write(const char* str) {
+    virtual size_t write(const char* str) {
         return write(str, strlen(str));
     }
 
 #endif
 
 private:
-    uint8_t mPin;
-    uint8_t mOutBuf[32];
+    uint8_t mOutBuf[64];
     uint8_t mOutQty;
 };
 

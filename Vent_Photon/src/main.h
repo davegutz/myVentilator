@@ -308,7 +308,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,run_time,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,tach,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,run_time,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -481,7 +481,7 @@ void serial_print_inputs(unsigned long now, double run_time, double T)
   Serial.print(Ta_Sense, 1); Serial.print(", ");
   Serial.print(hum, 1); Serial.print(", ");
   Serial.print(pcnt_pot, 1); Serial.print(", ");
-  Serial.print(pcnt_tach, 1); Serial.print(", ");
+  Serial.print(tempf, 1); Serial.print(", ");
 }
 
 // Normal serial print
@@ -579,6 +579,7 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
   {
     if ( publishP ) 
     {
+      if (debug>4) Serial.printf("Particle write1n");
       unsigned nowSec = now/1000UL;
       unsigned sec = nowSec%60;
       unsigned min = (nowSec%3600)/60;

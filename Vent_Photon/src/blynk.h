@@ -8,5 +8,5 @@
  *
  */
 
-#include "Blynk/BlynkSimpleParticle.h"
+#include "BlynkSimpleParticle.h"
 

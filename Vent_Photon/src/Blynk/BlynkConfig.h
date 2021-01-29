@@ -11,22 +11,21 @@
 #ifndef BlynkConfig_h
 #define BlynkConfig_h
 
-//#include "Blynk/BlynkDetectDevice.h"
-#include "BlynkDetectDevice.h"
+#include <Blynk/BlynkDetectDevice.h>
 
 /***************************************************
  * Change these settings to match your need
  ***************************************************/
 
 #define BLYNK_DEFAULT_DOMAIN     "blynk-cloud.com"
-#define BLYNK_DEFAULT_PORT       8442
-#define BLYNK_DEFAULT_PORT_SSL   8441
+#define BLYNK_DEFAULT_PORT       80
+#define BLYNK_DEFAULT_PORT_SSL   443
 
 /***************************************************
  * Professional settings
  ***************************************************/
 // Library version.
-#define BLYNK_VERSION        "0.3.7"
+#define BLYNK_VERSION        "0.6.3"
 
 // Heartbeat period in seconds.
 #ifndef BLYNK_HEARTBEAT
@@ -35,12 +34,12 @@
 
 // Network timeout in milliseconds.
 #ifndef BLYNK_TIMEOUT_MS
-#define BLYNK_TIMEOUT_MS     2000UL
+#define BLYNK_TIMEOUT_MS     3000UL
 #endif
 
-// Limit the amount of outgoing commands.
+// Limit the amount of outgoing commands per second.
 #ifndef BLYNK_MSG_LIMIT
-#define BLYNK_MSG_LIMIT      20
+#define BLYNK_MSG_LIMIT      15
 #endif
 
 // Limit the incoming command length.
@@ -53,6 +52,9 @@
 #define BLYNK_MAX_SENDBYTES  128
 #endif
 
+// Uncomment to use Let's Encrypt Root CA
+//#define BLYNK_SSL_USE_LETSENCRYPT
+
 // Uncomment to disable built-in analog and digital operations.
 //#define BLYNK_NO_BUILTIN
 
@@ -64,6 +66,12 @@
 
 // Uncomment to force-enable 128 virtual pins
 //#define BLYNK_USE_128_VPINS
+
+// Uncomment to disable fancy logo
+//#define BLYNK_NO_FANCY_LOGO
+
+// Uncomment to enable 3D fancy logo
+//#define BLYNK_FANCY_LOGO_3D
 
 // Uncomment to enable experimental functions.
 //#define BLYNK_EXPERIMENTAL
