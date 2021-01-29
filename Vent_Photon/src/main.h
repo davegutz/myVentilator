@@ -191,10 +191,10 @@ uint32_t duty = 0;          // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
 // Global locals for Blynk TODO:  simplify
 String hmString = "00:00";  // time, hh:mm
 bool call = false;          // Heat demand to relay control
+bool held = false;          // doomed parameter
 double callCount;           // Floating point of bool call for calculation
 int set = 65;               // Selected sched, F
 double tempComp;            // Sensed compensated temp, F
-bool held = false;          // Web toggled permanent and acknowledged
 int potDmd = 0;             // Pot value, deg F
 int schdDmd = 62;           // Sched raw value, F
 double OAT = 30;            // Outside air temperature, F
@@ -231,7 +231,8 @@ void serial_print(uint32_t duty);
 uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, unsigned int time_ms);
 DS18 sensor_plenum(pin_1_wire);
-void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4, bool publishP);
+void publish1(void); void publish2(void); void publish3(void); void publish4(void);
+void publish_particle(unsigned long now, bool publishP);
 int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(int t);
@@ -240,6 +241,7 @@ void gotWeatherData(const char *name, const char *data);
 void getWeather(void);
 String tryExtractString(String str, const char* start, const char* end);
 double  decimalTime(unsigned long *currentTime, char* tempStr);
+BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4;     // Time Blynk events
 
 // Setup
 void setup()
@@ -290,6 +292,10 @@ void setup()
   #endif
 
   #ifndef NO_BLYNK
+    blynk_timer_1.setInterval(PUBLISH_DELAY, publish1);
+    blynk_timer_2.setTimeout(1*PUBLISH_DELAY/4, [](){blynk_timer_2.setInterval(PUBLISH_DELAY, publish2);});
+    blynk_timer_3.setTimeout(2*PUBLISH_DELAY/4, [](){blynk_timer_3.setInterval(PUBLISH_DELAY, publish3);});
+    blynk_timer_4.setTimeout(3*PUBLISH_DELAY/4, [](){blynk_timer_4.setInterval(PUBLISH_DELAY, publish4);});
     Blynk.begin(blynkAuth.c_str());
   #endif
 
@@ -329,11 +335,6 @@ void loop()
   bool filter;             // Filter for temperature, T/F
   bool model;              // Run model, T/F
   bool publishP;           // Particle publish, T/F
-  bool publishAny;         // Publish, T/F
-  bool publish1;           // Publish, T/F
-  bool publish2;           // Publish, T/F
-  bool publish3;           // Publish, T/F
-  bool publish4;           // Publish, T/F
   bool query;              // Query schedule and OAT, T/F
   bool read;               // Read, T/F
   bool serial;             // Serial print, T/F
@@ -342,10 +343,6 @@ void loop()
   static unsigned long    lastFilter   = 0UL; // Last filter time, ms
   static unsigned long    lastModel    = 0UL; // Las model time, ms
   static unsigned long    lastPublishP = 0UL; // Last publish time, ms
-  static unsigned long    lastPublish1 = 0UL; // Last publish time, ms
-  static unsigned long    lastPublish2 = 0UL; // Last publish time, ms
-  static unsigned long    lastPublish3 = 0UL; // Last publish time, ms
-  static unsigned long    lastPublish4 = 0UL; // Last publish time, ms
   static unsigned long    lastQuery    = 0UL; // Last read time, ms
   static unsigned long    lastRead     = 0UL; // Last read time, ms
   static unsigned long    lastSerial   = 0UL; // Last Serial print time, ms
@@ -367,31 +364,31 @@ void loop()
     lastModel    = now;
   }
 
+  // Blynk
+  Blynk.run();
+  blynk_timer_1.run(); blynk_timer_2.run(); blynk_timer_3.run(); blynk_timer_4.run(); 
+
+  // Particle
   publishP  = ((now-lastPublishP) >= PUBLISH_PARTICLE_DELAY);
   if ( publishP ) lastPublishP  = now;
-  publish1  = ((now-lastPublish1) >= PUBLISH_DELAY*4);
-  if ( publish1 ) lastPublish1  = now;
-  publish2  = ((now-lastPublish2) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY);
-  if ( publish2 ) lastPublish2  = now;
-  publish3  = ((now-lastPublish3) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY*2);
-  if ( publish3 ) lastPublish3  = now;
-  publish4  = ((now-lastPublish4) >= PUBLISH_DELAY*4)  && ((now-lastPublish1) >= PUBLISH_DELAY*3);
-  if ( publish4 ) lastPublish4  = now;
-  publishAny  = publish1 || publish2 || publish3 || publish4 || publishP;
 
-  read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishAny;
+  // Read sensors
+  read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishP;
   if ( read     ) lastRead      = now;
 
+  // Query Web
   query   = reset || (((now-lastQuery)>= QUERY_DELAY) && !read);
   if ( query    ) lastQuery     = now;
 
+  // LCD display if used
   display   = ((now-lastDisplay) >= DISPLAY_DELAY) && !query;
   if ( display ) lastDisplay    = now;
 
+  // Serial debug if used
   serial   = ((now-lastSerial) >= SERIAL_DELAY) && !query;
   if ( serial ) lastSerial    = now;
 
-  // Sample inputs
+  // Control Demands
   past = now;
   now = millis();
   T = (now - past)/1e3;
@@ -406,9 +403,7 @@ void loop()
     updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
     lastControl   = now;
   }
-
   delay(500);
-
   if ( bare )
   {
     delay ( bare_wait );
@@ -459,15 +454,16 @@ void loop()
     }
   }
 
-
-  // Publish
-  if ( publishAny && debug>3 )
+  // Publish to Particle cloud if desired (different than Blynk)
+  // Visit https://console.particle.io/events.   Click on "view events on a terminal"
+  // to get a curl command to run
+  if ( debug>3 && publishP )
   {
     if ( debug>3 ) Serial.println(F("publish"));
-    publish(now, publish1, publish2, publish3, publish4, publishP);
-  } // publishAny
+    publish_particle(now, publishP);
+  }
 
-  // Monitor
+  // Monitor for debug
   if ( debug>1 && serial )
   {
     serial_print_inputs(now, run_time, T);
@@ -575,10 +571,67 @@ uint32_t pwm_write(uint32_t duty)
     return duty;
 }
 
-void publish(unsigned long now, bool publish1, bool publish2, bool publish3, bool publish4, bool publishP)
+
+// Publish1 Blynk
+void publish1(void)
+{
+  #ifndef NO_BLYNK
+    if (debug>4) Serial.printf("Blynk write1\n");
+    Blynk.virtualWrite(V0,  duty);
+    Blynk.virtualWrite(V2,  Ta_Sense);
+    Blynk.virtualWrite(V3,  hum);
+    Blynk.virtualWrite(V4,  tempComp);
+    Blynk.virtualWrite(V5,  Tp_Sense);
+  #endif
+}
+
+
+// Publish2 Blynk
+void publish2(void)
+{
+  #ifndef NO_BLYNK
+    static int lastChangedWebDmd = webDmd;
+    if (debug>4) Serial.printf("Blynk write2\n");
+    Blynk.virtualWrite(V7,  controlTime);
+    Blynk.virtualWrite(V8,  updateTime);
+    Blynk.virtualWrite(V9,  potDmd);
+    Blynk.virtualWrite(V10, lastChangedWebDmd);
+    Blynk.virtualWrite(V11, set);
+  #endif
+}
+
+
+// Publish3 Blynk
+void publish3(void)
+{
+  #ifndef NO_BLYNK
+    if (debug>4) Serial.printf("Blynk write3\n");
+    Blynk.virtualWrite(V12, schdDmd);
+    Blynk.virtualWrite(V13, Ta_Sense);
+    Blynk.virtualWrite(V14, I2C_Status);
+    Blynk.virtualWrite(V15, hmString);
+    Blynk.virtualWrite(V16, callCount*1+set-HYST);
+  #endif
+}
+
+
+// Publish4 Blynk
+void publish4(void)
+{
+  #ifndef NO_BLYNK
+    if (debug>4) Serial.printf("Blynk write4\n");
+    Blynk.virtualWrite(V17, reco);
+    Blynk.virtualWrite(V18, OAT);
+    Blynk.virtualWrite(V19, Ta_Obs);
+    Blynk.virtualWrite(V20, rejectHeat*200);
+  #endif
+}
+
+
+// Check connection and publish Particle
+void publish_particle(unsigned long now, bool publishP)
 {
   char  tmpsStr[STAT_RESERVE];
-  static int lastChangedWebDmd = webDmd;
   sprintf(tmpsStr, "%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f|%c", \
     hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, '\0');
   #ifndef NO_PARTICLE
@@ -589,7 +642,7 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
   {
     if ( publishP ) 
     {
-      if (debug>4) Serial.printf("Particle write1n");
+      if (debug>4) Serial.printf("Particle write\n");
       unsigned nowSec = now/1000UL;
       unsigned sec = nowSec%60;
       unsigned min = (nowSec%3600)/60;
@@ -598,43 +651,6 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
       Particle.publish("Uptime",publishString);
       Particle.publish("stat", tmpsStr);
     }
-    #ifndef NO_BLYNK
-      if ( publish1 )
-      {
-        if (debug>4) Serial.printf("Blynk write1\n");
-        Blynk.virtualWrite(V0,  call);
-        Blynk.virtualWrite(V2,  Ta_Sense);
-        Blynk.virtualWrite(V3,  hum);
-        Blynk.virtualWrite(V4,  tempComp);
-        Blynk.virtualWrite(V5,  held);
-      }
-      if ( publish2 )
-      {
-        if (debug>4) Serial.printf("Blynk write2\n");
-        Blynk.virtualWrite(V7,  controlTime);
-        Blynk.virtualWrite(V8,  updateTime);
-        Blynk.virtualWrite(V9,  potDmd);
-        Blynk.virtualWrite(V10, lastChangedWebDmd);
-        Blynk.virtualWrite(V11, set);
-      }
-      if ( publish3 )
-      {
-        if (debug>4) Serial.printf("Blynk write3\n");
-        Blynk.virtualWrite(V12, schdDmd);
-        Blynk.virtualWrite(V13, Ta_Sense);
-        Blynk.virtualWrite(V14, I2C_Status);
-        Blynk.virtualWrite(V15, hmString);
-        Blynk.virtualWrite(V16, callCount*1+set-HYST);
-      }
-      if ( publish4 )
-      {
-        if (debug>4) Serial.printf("Blynk write4\n");
-        Blynk.virtualWrite(V17, reco);
-        Blynk.virtualWrite(V18, OAT);
-        Blynk.virtualWrite(V19, Ta_Obs);
-        Blynk.virtualWrite(V20, rejectHeat*200);
-      }
-    #endif
   }
   else
   {
@@ -642,7 +658,6 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
     Particle.connect();
     numTimeouts++;
   }
-
 }
 
 
