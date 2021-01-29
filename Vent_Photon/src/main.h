@@ -210,11 +210,11 @@ enum Mode {POT, WEB, SCHD}; // To keep track of mode
 Mode controlMode = POT;     // Present control mode
 const int EEPROM_ADDR = 1;  // Flash address
 #ifndef NO_WEATHER_HOOK
-  int                         badWeatherCall  = 0;  // webhook lookup counter
-  long                        updateweatherhour;    // Last hour weather updated
-  bool                 weatherGood;          // webhook OAT lookup successful, T/F
+  int badWeatherCall  = 0;  // webhook lookup counter
+  long updateweatherhour;   // Last hour weather updated
+  bool weatherGood;         // webhook OAT lookup successful, T/F
 #endif
-double                tempf;                // webhook OAT, deg F
+double tempf;               // webhook OAT, deg F
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -292,12 +292,6 @@ void setup()
   #ifndef NO_BLYNK
     Blynk.begin(blynkAuth.c_str());
   #endif
-  #ifndef NO_WEATHER_HOOK
-    if ( debug>0 )Serial.print("\n\nInitializing weather...");
-    Serial.flush();
-    getWeather();
-  #endif
-  
 
   #ifdef PHOTON
     if ( debug>1 ) { sprintf(buffer, "Particle Photon.  bare = %d,\n", bare); Serial.print(buffer); };
@@ -366,7 +360,7 @@ void loop()
     lastFilter    = now;
   }
 
-  model     = ((now-lastModel)>=MODEL_DELAY) || reset>0;
+  model     = ((now-lastModel)>=MODEL_DELAY) || reset;
   if ( model )
   {
     if ( debug > 3 ) Serial.printf("Model update=%7.3f\n", float(now-lastModel)/1000.0);
@@ -388,7 +382,7 @@ void loop()
   read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishAny;
   if ( read     ) lastRead      = now;
 
-  query   = ((now-lastQuery)>= QUERY_DELAY) && !read;
+  query   = reset || (((now-lastQuery)>= QUERY_DELAY) && !read);
   if ( query    ) lastQuery     = now;
 
   display   = ((now-lastDisplay) >= DISPLAY_DELAY) && !query;
@@ -421,6 +415,22 @@ void loop()
   }
   run_time += T;
   if ( debug>3 ) { Serial.print(F("debug loop message here=")); Serial.println(F(", ")); };
+
+  #ifndef NO_WEATHER_HOOK
+    // Get OAT webhook
+    if ( query    )
+    {
+      unsigned long           then = millis();     // Keep track of time
+      getWeather();
+      unsigned long           now = millis();     // Keep track of time
+      if ( debug>0 ) Serial.printf("weather update=%f\n", float(now-then)/1000.0);
+      if ( weatherGood )
+      {
+        OAT = tempf;
+      }
+      if ( debug>4 ) Serial.printf("OAT=%f at %s\n", OAT, hmString.c_str());
+    }
+  #endif
 
   // Outputs
   if ( control )
@@ -481,7 +491,7 @@ void serial_print_inputs(unsigned long now, double run_time, double T)
   Serial.print(Ta_Sense, 1); Serial.print(", ");
   Serial.print(hum, 1); Serial.print(", ");
   Serial.print(pcnt_pot, 1); Serial.print(", ");
-  Serial.print(tempf, 1); Serial.print(", ");
+  Serial.print(OAT, 1); Serial.print(", ");
 }
 
 // Normal serial print
@@ -570,7 +580,7 @@ void publish(unsigned long now, bool publish1, bool publish2, bool publish3, boo
   char  tmpsStr[STAT_RESERVE];
   static int lastChangedWebDmd = webDmd;
   sprintf(tmpsStr, "%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f|%c", \
-    hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, tempf, Ta_Obs, '\0');
+    hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
@@ -716,18 +726,10 @@ void saveTemperature(const int set, const int webDmd, const int held, const int 
 }
 
 
-
 //Updates Weather Forecast Data
 #ifndef NO_WEATHER_HOOK
 void getWeather()
 {
-  // Don't check if same hour
-  if (Time.hour() == updateweatherhour)
-  {
-    if (debug>2 && weatherGood) Serial.printf("Weather up to date, tempf=%f\n", tempf);
-    return;
-  }
-
   if (debug>2)
   {
     Serial.print("Requesting Weather from webhook...");
@@ -738,8 +740,8 @@ void getWeather()
   Particle.publish("get_weather");
 
   unsigned long wait = millis();
-  //wait for subscribe to kick in or 0.9 secs
-  while (!weatherGood && (millis() < wait + WEATHER_WAIT))
+  //wait for subscribe to kick in or WEATHER_WAIT secs
+  while ( !weatherGood && (millis()<wait+WEATHER_WAIT) )
   {
     //Tells the core to check for incoming messages from partile cloud
     Particle.process();
@@ -785,7 +787,10 @@ void gotWeatherData(const char *name, const char *data)
     if(debug>3) Serial.println("");
     Serial.println("At location: " + locationStr);
   }
-  if (weatherStr != "" && debug>3) {
+  // if (weatherStr != "" && debug>3) {
+  //   Serial.println("The weather is: " + weatherStr);
+  // }
+  if ( debug>3 ) {
     Serial.println("The weather is: " + weatherStr);
   }
   if (tempStr != "") {
