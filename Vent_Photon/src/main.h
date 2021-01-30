@@ -216,7 +216,7 @@ const int EEPROM_ADDR = 1;  // Flash address
 #endif
 double tempf;               // webhook OAT, deg F
 double integ = 0;
-double G = 0.33;   // r/s = %/F
+double G = 0.017;   // r/s = %/F
 double tau = 30;
 double prop = 0;
 double cont = 0;
