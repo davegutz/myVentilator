@@ -47,7 +47,7 @@
 const int8_t debug = 5;         // Level of debug printing (3)
 #define TA_SENSOR 0x27          // Ambient room Honeywell temp sensor bus address (0x27)
 #define TP_TEMPCAL 1            // Maxim 1-wire plenum temp sense calibrate (0), F
-#define TA_TEMPCAL -7           // Honeywell calibrate temp sense (0), F
+#define TA_TEMPCAL -5           // Honeywell calibrate temp sense (0), F
 #define HW_HUMCAL -2            // Honeywell calibrate humidity sense (-2), %
 #define ONE_DAY_MILLIS 86400000 // Number of milliseconds in one day (24*60*60*1000)
 #define NOMSET 68               // Nominal setpoint for modeling etc, F
