@@ -215,6 +215,12 @@ const int EEPROM_ADDR = 1;  // Flash address
   bool weatherGood;         // webhook OAT lookup successful, T/F
 #endif
 double tempf;               // webhook OAT, deg F
+double integ = 0;
+double G = 0.33;   // r/s = %/F
+double tau = 30;
+double prop = 0;
+double cont = 0;
+double err = 0;
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -331,7 +337,7 @@ void loop()
   const int bare_wait = int(1000.0);        // To simulate peripherals sample time
   static double cmd = 0;                  // PWM duty cycle output
   bool readTp;             // Special sequence to read Tp affected by PWM noise with duty>0, T/F
-  bool dwellTp;            // Special hold to read Tp T/F
+  static bool dwellTp;     // Special hold to read Tp T/F
   bool control;            // Control sequence, T/F
   bool display;            // LED display sequence, T/F
   bool filter;             // Filter for temperature, T/F
@@ -379,8 +385,8 @@ void loop()
   // Read sensors
   readTp  = ((now-lastReadTp) >= READ_TP_DELAY  || reset>0);
   if ( readTp   ) lastReadTp   = now;
-  dwellTp = ((now-lastDwellTp) < DWELL_TP_DELAY || reset>0 || readTp);
-  if ( readTp   ) lastReadTp   = now;
+  dwellTp = ( (dwellTp && ((now-lastDwellTp)<DWELL_TP_DELAY)) || readTp);
+  if ( !dwellTp   ) lastDwellTp   = now;
   read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishP;
   if ( read     ) lastRead      = now;
 
@@ -438,8 +444,18 @@ void loop()
   // Outputs
   if ( control )
   {
-    cmd = pcnt_pot;
-    duty = uint32_t(min(cmd*256.0/100.0, 100));
+    if ( !dwellTp )  // Freeze control if dwellTp
+    {
+      err = set - Ta_Sense;
+      double err_comp = err * G;
+      prop = err_comp * tau;
+      integ = max(min(integ + deltaT*err_comp, 100-prop), -prop);
+      cont = max(min(integ+prop, 100), 0);
+    }
+    cmd = min(pcnt_pot, cont);
+    duty = uint32_t(max(min(cmd*256.0/100.0, 100), 0));
+    if ( Tp_Sense<74.0 ) duty = 0;
+    if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>23 ) duty = 0;
     if ( dwellTp ) duty = 0;
     pwm_write(duty);
     toggle = !toggle;
@@ -544,7 +560,7 @@ boolean load(int reset, double T, unsigned int time_ms)
     // Pot input
     int raw_pot_trim = analogRead(pot_trim);
     int raw_pot_control = analogRead(pot_control);
-    pcnt_pot = max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*0.6084);
+    pcnt_pot = max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*0.609);
 
     // Tach input
     int raw_tach = analogRead(tach_sense);
@@ -641,8 +657,8 @@ void publish4(void)
 void publish_particle(unsigned long now, bool publishP)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,%c", \
-    unit.c_str(), hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, '\0');
+  sprintf(tmpsStr, "%s,%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%c", \
+    unit.c_str(), hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
