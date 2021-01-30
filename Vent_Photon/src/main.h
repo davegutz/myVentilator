@@ -448,7 +448,7 @@ void loop()
     {
       err = set - Ta_Sense;
       double err_comp = err * G;
-      prop = err_comp * tau;
+      prop = max(min(err_comp * tau, 20), -20);
       integ = max(min(integ + deltaT*err_comp, 100-prop), -prop);
       cont = max(min(integ+prop, 100), 0);
     }
