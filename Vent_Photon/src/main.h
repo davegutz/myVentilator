@@ -641,8 +641,8 @@ void publish4(void)
 void publish_particle(unsigned long now, bool publishP)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f|%c", \
-    hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, '\0');
+  sprintf(tmpsStr, "%s,%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,%c", \
+    unit.c_str(), hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
