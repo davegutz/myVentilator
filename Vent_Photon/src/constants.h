@@ -38,7 +38,7 @@
 //#define WEATHER_BUG           // Turn on bad weather return for debugging
 //#define NO_BLYNK              // Turn off Blynk functions.  Interact using Particle cloud
 //#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
-#define BARE                  // Run without peripherals, except maybe a POT
+//#define BARE                  // Run without peripherals, except maybe a POT
 
 // Test feature usually commented
 //#define  FAKETIME                         // For simulating rapid time passing of schedule
@@ -67,6 +67,8 @@ const int8_t debug = 5;         // Level of debug printing (3)
 #define WEATHER_WAIT     5000UL      // Time to wait for weather webhook, ms (900UL)
 #define GMT              -5         // Enter time different to zulu (does not respect DST)
 #define USE_DST          1          // Whether to apply DST or not, 0 or 1
+#define READ_TP_DELAY    1800000UL  // Time between Tp read shutdowns (1800000UL = 30 min)
+#define DWELL_TP_DELAY   30000UL    // Time between Tp read shutdowns (30000UL = 30 sec)
 
 #ifdef BARE
 const boolean bare = true;  // Force continuous calibration mode to run with bare boards (false)

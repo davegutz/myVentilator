@@ -330,6 +330,8 @@ void loop()
   boolean testing = true;                   // Initial startup is calibration mode to 60 bpm, 99% spo2, 2% PI
   const int bare_wait = int(1000.0);        // To simulate peripherals sample time
   static double cmd = 0;                  // PWM duty cycle output
+  bool readTp;             // Special sequence to read Tp affected by PWM noise with duty>0, T/F
+  bool dwellTp;            // Special hold to read Tp T/F
   bool control;            // Control sequence, T/F
   bool display;            // LED display sequence, T/F
   bool filter;             // Filter for temperature, T/F
@@ -338,6 +340,8 @@ void loop()
   bool query;              // Query schedule and OAT, T/F
   bool read;               // Read, T/F
   bool serial;             // Serial print, T/F
+  static unsigned long    lastReadTp   = 0UL; // Last readTp time, ms
+  static unsigned long    lastDwellTp  = 0UL; // Last dwellTp time, ms
   static unsigned long    lastControl  = 0UL; // Last control law time, ms
   static unsigned long    lastDisplay  = 0UL; // Las display time, ms
   static unsigned long    lastFilter   = 0UL; // Last filter time, ms
@@ -373,6 +377,10 @@ void loop()
   if ( publishP ) lastPublishP  = now;
 
   // Read sensors
+  readTp  = ((now-lastReadTp) >= READ_TP_DELAY  || reset>0);
+  if ( readTp   ) lastReadTp   = now;
+  dwellTp = ((now-lastDwellTp) < DWELL_TP_DELAY || reset>0 || readTp);
+  if ( readTp   ) lastReadTp   = now;
   read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishP;
   if ( read     ) lastRead      = now;
 
@@ -397,7 +405,7 @@ void loop()
   control = (deltaT>=CONTROL_DELAY) || reset;
   if ( control  )
   {
-    char  tempStr[8];                           // time, hh:mm
+    char  tempStr[19];  // time, year-mo-dyThh:mm:ss
     controlTime = decimalTime(&currentTime, tempStr);
     hmString    = String(tempStr);
     updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
@@ -432,6 +440,7 @@ void loop()
   {
     cmd = pcnt_pot;
     duty = uint32_t(min(cmd*256.0/100.0, 100));
+    if ( dwellTp ) duty = 0;
     pwm_write(duty);
     toggle = !toggle;
     digitalWrite(status_led, HIGH);
@@ -857,13 +866,14 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
 {
     Time.zone(GMT);
     *currentTime = Time.now();
+    uint32_t year     = Time.year(*currentTime);
+    uint8_t month     = Time.month(*currentTime);
+    uint8_t day       = Time.day(*currentTime);
+    uint8_t hours     = Time.hour(*currentTime);
     // Second Sunday Mar and First Sunday Nov; 2:00 am; crude DST handling
     if ( USE_DST)
     {
-      uint8_t month     = Time.month(*currentTime);
-      uint8_t day       = Time.day(*currentTime);
       uint8_t dayOfWeek = Time.weekday(*currentTime);     // 1-7
-      uint8_t hours     = Time.hour(*currentTime);
       if (  month>2   && month<12 &&
         !(month==3  && ((day-dayOfWeek)<7 ) && hours>1) &&  // <second Sunday Mar
         !(month==11 && ((day-dayOfWeek)>=0) && hours>0) )  // >=first Sunday Nov
@@ -874,7 +884,6 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
     }
     #ifndef FAKETIME
         uint8_t dayOfWeek = Time.weekday(*currentTime)-1;  // 0-6
-        uint8_t hours     = Time.hour(*currentTime);
         uint8_t minutes   = Time.minute(*currentTime);
         uint8_t seconds   = Time.second(*currentTime);
         if ( debug>5 ) Serial.printf("DAY %u HOURS %u\n", dayOfWeek, hours);
@@ -885,7 +894,7 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
         uint8_t minutes   = 0; // forget minutes
         uint8_t seconds   = 0; // forget seconds
     #endif
-    sprintf(tempStr, "%02u:%02u", hours, minutes);
+    sprintf(tempStr, "%4u-%02u-%02uT%02u:%02u:%02u", int(year), month, day, hours, minutes, seconds);
     return (float(dayOfWeek)*24.0 + float(hours) + float(minutes)/60.0 + \
                         float(seconds)/3600.0);  // 0-6 days and 0 is Sunday
 }
