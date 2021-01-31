@@ -238,7 +238,7 @@ uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, unsigned int time_ms);
 DS18 sensor_plenum(pin_1_wire);
 void publish1(void); void publish2(void); void publish3(void); void publish4(void);
-void publish_particle(unsigned long now, bool publishP);
+void publish_particle(unsigned long now, bool publishP, double run_time);
 int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(int t);
@@ -411,7 +411,7 @@ void loop()
   control = (deltaT>=CONTROL_DELAY) || reset;
   if ( control  )
   {
-    char  tempStr[19];  // time, year-mo-dyThh:mm:ss
+    char  tempStr[23];  // time, year-mo-dyThh:mm:ss iso format, no time zone
     controlTime = decimalTime(&currentTime, tempStr);
     hmString    = String(tempStr);
     updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
@@ -485,7 +485,7 @@ void loop()
   if ( debug>3 && publishP )
   {
     if ( debug>3 ) Serial.println(F("publish"));
-    publish_particle(now, publishP);
+    publish_particle(now, publishP, run_time);
   }
 
   // Monitor for debug
@@ -654,11 +654,11 @@ void publish4(void)
 
 
 // Check connection and publish Particle
-void publish_particle(unsigned long now, bool publishP)
+void publish_particle(unsigned long now, bool publishP, double run_time)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,%s,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%c", \
-    unit.c_str(), hmString.c_str(), callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
+  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%c", \
+    unit.c_str(), hmString.c_str(), run_time, callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
@@ -882,10 +882,11 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
 {
     Time.zone(GMT);
     *currentTime = Time.now();
-    uint32_t year     = Time.year(*currentTime);
-    uint8_t month     = Time.month(*currentTime);
-    uint8_t day       = Time.day(*currentTime);
-    uint8_t hours     = Time.hour(*currentTime);
+    uint32_t year = Time.year(*currentTime);
+    uint8_t month = Time.month(*currentTime);
+    uint8_t day = Time.day(*currentTime);
+    uint8_t hours = Time.hour(*currentTime);
+
     // Second Sunday Mar and First Sunday Nov; 2:00 am; crude DST handling
     if ( USE_DST)
     {
