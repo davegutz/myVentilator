@@ -37,7 +37,7 @@ class Client:
         if beg>0:
             beg += DEVICE_NAME_LENGTH+1
             end = text_obj.find(TRAIL_STR)
-            csv_string = text_obj[beg:end].strip()
+            csv_string = text_obj[beg:end]
             if len(csv_string)>1:
                 print(csv_string)
                 self.f.write(csv_string+'\n')
