@@ -237,7 +237,7 @@ byte pot_control = A3;      // Control Pot
 
 // Utilities
 void serial_print_inputs(unsigned long now, double T);
-void serial_print(uint32_t duty);
+void serial_print(double cmd);
 uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, unsigned int time_ms);
 DS18 sensor_plenum(pin_1_wire);
@@ -321,7 +321,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -563,7 +563,7 @@ void loop()
   if ( debug>1 && serial )
   {
     serial_print_inputs(now, T);
-    serial_print(duty);
+    serial_print(cmd);
   }
 
   // Initialize complete
@@ -587,11 +587,11 @@ void serial_print_inputs(unsigned long now, double T)
 }
 
 // Normal serial print
-void serial_print(uint32_t duty)
+void serial_print(double cmd)
 {
   if ( debug>0 )
   {
-    Serial.print(duty, DEC); Serial.print(F(", "));   Serial.println(F(""));
+    Serial.print(cmd, 2); Serial.print(F(", "));   Serial.println(F(""));
   }
   else
   {
@@ -673,7 +673,7 @@ void publish1(void)
 {
   #ifndef NO_BLYNK
     if (debug>4) Serial.printf("Blynk write1\n");
-    Blynk.virtualWrite(V0,  duty);
+    Blynk.virtualWrite(V0,  cmd);
     Blynk.virtualWrite(V2,  Ta_Sense);
     Blynk.virtualWrite(V3,  hum);
     //Blynk.virtualWrite(V4,  tempComp);
