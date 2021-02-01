@@ -242,7 +242,7 @@ uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, unsigned int time_ms);
 DS18 sensor_plenum(pin_1_wire);
 void publish1(void); void publish2(void); void publish3(void); void publish4(void);
-void publish_particle(unsigned long now, bool publishP);
+void publish_particle(unsigned long now, bool publishP, double cmd);
 int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(int t);
@@ -523,8 +523,8 @@ void loop()
       integ = max(min(integ + deltaT*err_comp, 100-prop), -prop);
       cont = max(min(integ+prop, 100), 0);
     }
-    cmd = min(pcnt_pot, cont);
-    duty = uint32_t(max(min(cmd*256.0/100.0, 100), 0));
+    cmd = max(min(min(pcnt_pot, cont),100.0), 0);
+    duty = uint32_t(cmd*256.0/100.0);
     if ( Tp_Sense<74.0 ) duty = 0;
     if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>23 ) duty = 0;
     if ( dwellTp ) duty = 0;
@@ -556,7 +556,7 @@ void loop()
   if ( debug>3 && publishP )
   {
     if ( debug>3 ) Serial.println(F("publish"));
-    publish_particle(now, publishP);
+    publish_particle(now, publishP, cmd);
   }
 
   // Monitor for debug
@@ -724,11 +724,11 @@ void publish4(void)
 
 
 // Check connection and publish Particle
-void publish_particle(unsigned long now, bool publishP)
+void publish_particle(unsigned long now, bool publishP, double cmd)
 {
   char  tmpsStr[STAT_RESERVE];
   sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%c", \
-    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
+    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(cmd), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif

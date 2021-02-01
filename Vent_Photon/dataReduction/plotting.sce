@@ -14,7 +14,7 @@ function plot_data(%zoom, %loc)
     subplot(211)
     overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.OAT'], ['r-', 'g-', 'm-', 'b-'], 'Data temperatures', 'time, s', %zoom)
     subplot(212)
-    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.duty'], ['r--', 'g--', 'b-', 'k-'], 'Data duty', 'time, s', %zoom)
+    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.duty'], ['r--', 'g--', 'b-', 'c-'], 'Data duty', 'time, s', %zoom)
 endfunction
 
 function plot_compare(%zoom, %loc)
