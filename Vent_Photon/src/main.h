@@ -225,6 +225,7 @@ double err = 0;             // Control error, F
 bool lastHold = false;      // Web toggled permanent and acknowledged
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
 int lastChangedWebDmd = webDmd;
+double cmd = 0;                  // PWM duty cycle output
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -321,7 +322,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,pcnt_pot,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -341,7 +342,6 @@ void loop()
   double T = 0;                             // Present update time, s
   boolean testing = true;                   // Initial startup is calibration mode to 60 bpm, 99% spo2, 2% PI
   const int bare_wait = int(1000.0);        // To simulate peripherals sample time
-  static double cmd = 0;                  // PWM duty cycle output
   bool readTp;             // Special sequence to read Tp affected by PWM noise with duty>0, T/F
   static bool dwellTp;     // Special hold to read Tp T/F
   bool control;            // Control sequence, T/F
@@ -631,7 +631,7 @@ boolean load(int reset, double T, unsigned int time_ms)
     // Pot input
     int raw_pot_trim = analogRead(pot_trim);
     int raw_pot_control = analogRead(pot_control);
-    pcnt_pot = min(max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*0.66), 100);
+    pcnt_pot = min(max(double(raw_pot_trim)/40.96*1.1, double(raw_pot_control)/40.96*0.66), 100);
 
     // Tach input
     int raw_tach = analogRead(tach_sense);
@@ -727,8 +727,8 @@ void publish4(void)
 void publish_particle(unsigned long now, bool publishP, double cmd)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%c", \
-    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(cmd), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
+  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%c", \
+    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot,'\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
