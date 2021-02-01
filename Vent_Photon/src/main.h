@@ -205,7 +205,7 @@ double rejectHeat = 0.0;    // Adjustment to embedded  model to match sensor, F/
   String statStr("WAIT..."); // Status string
 #endif
 char publishString[40];     // For uptime recording
-double controlTime = 0.0;   // Decimal time, hour
+double controlTime = 0.0;   // Decimal time, seconds since 1/1/2021
 bool reco;                  // Indicator of recovering on cold days by shifting schedule
 enum Mode {POT, WEB, AUTO, SCHD}; // To keep track of mode
 Mode controlMode = POT;     // Present control mode
@@ -236,13 +236,13 @@ byte pot_control = A3;      // Control Pot
 #endif
 
 // Utilities
-void serial_print_inputs(unsigned long now, double run_time, double T);
+void serial_print_inputs(unsigned long now, double T);
 void serial_print(uint32_t duty);
 uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, unsigned int time_ms);
 DS18 sensor_plenum(pin_1_wire);
 void publish1(void); void publish2(void); void publish3(void); void publish4(void);
-void publish_particle(unsigned long now, bool publishP, double run_time);
+void publish_particle(unsigned long now, bool publishP);
 int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(int t);
@@ -321,7 +321,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,run_time,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -336,7 +336,6 @@ void loop()
   static unsigned long now = millis();      // Keep track of time
   static unsigned long past = millis();     // Keep track of time
   static boolean toggle = false;            // Generate heartbeat
-  static double run_time = 0;               // Time, seconds
   static int reset = 1;                     // Dynamic reset
   // static boolean was_testing = true;        // Memory of testing, used to perform a logic reset on transition
   double T = 0;                             // Present update time, s
@@ -436,7 +435,6 @@ void loop()
   {
     delay ( bare_wait );
   }
-  run_time += T;
   // Scheduling logic
   // 1.  Pot has highest priority
   //     a.  Pot will not hold past next schedule change
@@ -558,13 +556,13 @@ void loop()
   if ( debug>3 && publishP )
   {
     if ( debug>3 ) Serial.println(F("publish"));
-    publish_particle(now, publishP, run_time);
+    publish_particle(now, publishP);
   }
 
   // Monitor for debug
   if ( debug>1 && serial )
   {
-    serial_print_inputs(now, run_time, T);
+    serial_print_inputs(now, T);
     serial_print(duty);
   }
 
@@ -575,10 +573,10 @@ void loop()
 
 
 // Inputs serial print
-void serial_print_inputs(unsigned long now, double run_time, double T)
+void serial_print_inputs(unsigned long now, double T)
 {
   Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(", ");
-  Serial.print(run_time, 3); Serial.print(", ");
+  Serial.print(controlTime, 3); Serial.print(", ");
   Serial.print(T, 6); Serial.print(", ");  
   Serial.print(I2C_Status, DEC); Serial.print(", ");
   Serial.print(Tp_Sense, 1); Serial.print(", ");
@@ -633,7 +631,7 @@ boolean load(int reset, double T, unsigned int time_ms)
     // Pot input
     int raw_pot_trim = analogRead(pot_trim);
     int raw_pot_control = analogRead(pot_control);
-    pcnt_pot = max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*0.609);
+    pcnt_pot = min(max(double(raw_pot_trim)/40.96, double(raw_pot_control)/40.96*0.66), 100);
 
     // Tach input
     int raw_tach = analogRead(tach_sense);
@@ -726,11 +724,11 @@ void publish4(void)
 
 
 // Check connection and publish Particle
-void publish_particle(unsigned long now, bool publishP, double run_time)
+void publish_particle(unsigned long now, bool publishP)
 {
   char  tmpsStr[STAT_RESERVE];
   sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%d,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%c", \
-    unit.c_str(), hmString.c_str(), run_time, callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
+    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, int(duty), updateTime, OAT, Ta_Obs, err, prop, integ, cont, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
@@ -984,6 +982,6 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
         uint8_t seconds   = 0; // forget seconds
     #endif
     sprintf(tempStr, "%4u-%02u-%02uT%02u:%02u:%02u", int(year), month, day, hours, minutes, seconds);
-    return (float(dayOfWeek)*24.0 + float(hours) + float(minutes)/60.0 + \
-                        float(seconds)/3600.0);  // 0-6 days and 0 is Sunday
+    return ((((float(year-2021)*365.0+float(day))*24.0 + float(hours))*60.0 + float(minutes))*60.0 + \
+                        float(seconds));
 }
