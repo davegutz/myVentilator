@@ -14,7 +14,7 @@ function plot_data(%zoom, %loc)
     subplot(211)
     overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.OAT'], ['r-', 'g-', 'm-', 'b-'], 'Data temperatures', 'time, s', %zoom)
     subplot(212)
-    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.duty'], ['r--', 'g--', 'b-', 'c-'], 'Data duty', 'time, s', %zoom)
+    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.cmd'], ['r--', 'g--', 'b-', 'c-'], 'Data cmd', 'time, s', %zoom)
 endfunction
 
 function plot_compare(%zoom, %loc)
@@ -52,7 +52,7 @@ function plot_all(%zoom, %loc)
     P.D.set = struct('time', D.time, 'values', D.set);
     P.D.Tp_Sense = struct('time', D.time, 'values', D.Tp_Sense);
     P.D.Ta_Sense = struct('time', D.time, 'values', D.Ta_Sense);
-    P.D.duty = struct('time', D.time, 'values', D.duty);
+    P.D.cmd = struct('time', D.time, 'values', D.cmd);
     P.D.T = struct('time', D.time, 'values', D.T);
     P.D.OAT = struct('time', D.time, 'values', D.OAT);
     P.D.Ta_Obs = struct('time', D.time, 'values', D.Ta_Obs);
@@ -64,7 +64,7 @@ function plot_all(%zoom, %loc)
     P.B.set = struct('time', B.time, 'values', B.set);
     P.B.Tp_Sense = struct('time', B.time, 'values', B.Tp_Sense);
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
-    P.B.duty = struct('time', B.time, 'values', B.duty);
+    P.B.cmd = struct('time', B.time, 'values', B.cmd);
     P.B.T = struct('time', B.time, 'values', B.T);
     P.B.OAT = struct('time', B.time, 'values', B.OAT);
     P.B.Ta_Obs = struct('time', B.time, 'values', B.Ta_Obs);
