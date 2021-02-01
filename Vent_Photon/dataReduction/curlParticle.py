@@ -14,6 +14,7 @@ DEVICE_NAME = 'vent'
 cts = datetime.datetime.now().isoformat()
 cts = cts.replace(':', '-')
 FILE_NAME = DEVICE_NAME+'_'+cts[0:16]+'.csv'
+DEBUG_FILE_NAME = 'debug.csv'
 TRAIL_STR = '","ttl"'
 DEVICE_NAME_LENGTH = len(DEVICE_NAME)
 #USER = "davegutz@alum.mit.edu"
@@ -24,6 +25,7 @@ class Client:
     def __init__(self):
         self.buffer = ""
         self.f = open(FILE_NAME, 'wt')
+        self.fb = open(DEBUG_FILE_NAME, 'wt')
         self.conn = pycurl.Curl()
         self.conn.setopt(pycurl.URL, STREAM_URL)
         # self.conn.setopt(pycurl.USERPWD, "%s:%s" % (USER, PASS))
@@ -42,6 +44,8 @@ class Client:
                 print(csv_string)
                 self.f.write(csv_string+'\n')
                 self.f.flush()
+                self.fb.write(csv_string+'\n')
+                self.fb.flush()
 
 
 def main():
