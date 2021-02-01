@@ -50,9 +50,9 @@ const int8_t debug = 5;         // Level of debug printing (3)
 #define TA_TEMPCAL -5           // Honeywell calibrate temp sense (0), F
 #define HW_HUMCAL -2            // Honeywell calibrate humidity sense (-2), %
 #define ONE_DAY_MILLIS 86400000 // Number of milliseconds in one day (24*60*60*1000)
-#define NOMSET 68               // Nominal setpoint for modeling etc, F
+#define NOMSET 65               // Nominal setpoint for modeling etc, F
 #define MINSET 50               // Minimum setpoint allowed (50), F
-#define MAXSET 72               // Maximum setpoint allowed (72), F
+#define MAXSET 75               // Maximum setpoint allowed (75), F
 #define CONTROL_DELAY    2000UL     // Control law wait, ms (5000)
 #define MODEL_DELAY      5000UL     // Model wait, ms (5000)
 #define PUBLISH_DELAY    30000UL    // Time between cloud updates, ms (30000UL)

@@ -184,7 +184,8 @@ double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
 bool webHold = false;       // Web permanence request
-int webDmd = 62;            // Web sched, F
+int potValue = 65;          // Dial raw value, F
+int webDmd = 65;            // Web sched, F
 double pcnt_pot = 0;        // Potentiometer read, % of 0-10v
 double pcnt_tach = 0;       // Tach read, % of 0-10v
 uint32_t duty = 0;          // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
@@ -206,7 +207,7 @@ double rejectHeat = 0.0;    // Adjustment to embedded  model to match sensor, F/
 char publishString[40];     // For uptime recording
 double controlTime = 0.0;   // Decimal time, hour
 bool reco;                  // Indicator of recovering on cold days by shifting schedule
-enum Mode {POT, WEB, SCHD}; // To keep track of mode
+enum Mode {POT, WEB, AUTO, SCHD}; // To keep track of mode
 Mode controlMode = POT;     // Present control mode
 const int EEPROM_ADDR = 1;  // Flash address
 #ifndef NO_WEATHER_HOOK
@@ -215,12 +216,13 @@ const int EEPROM_ADDR = 1;  // Flash address
   bool weatherGood;         // webhook OAT lookup successful, T/F
 #endif
 double tempf;               // webhook OAT, deg F
-double integ = 0;
-double G = 0.017;   // r/s = %/F
-double tau = 30;
-double prop = 0;
-double cont = 0;
-double err = 0;
+double integ = 0;           // Control integrator output, %
+double G = 0.017;           // Control gain, r/s = %/F (0.017)
+double tau = 30;            // Control lead, s  (30)
+double prop = 0;            // Control proportional output, %
+double cont = 0;            // Total control output, %
+double err = 0;             // Control error, F
+bool lastHold = false;      // Web toggled permanent and acknowledged
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -346,17 +348,18 @@ void loop()
   bool query;              // Query schedule and OAT, T/F
   bool read;               // Read, T/F
   bool serial;             // Serial print, T/F
-  static unsigned long    lastReadTp   = 0UL; // Last readTp time, ms
-  static unsigned long    lastDwellTp  = 0UL; // Last dwellTp time, ms
-  static unsigned long    lastControl  = 0UL; // Last control law time, ms
-  static unsigned long    lastDisplay  = 0UL; // Las display time, ms
-  static unsigned long    lastFilter   = 0UL; // Last filter time, ms
-  static unsigned long    lastModel    = 0UL; // Las model time, ms
-  static unsigned long    lastPublishP = 0UL; // Last publish time, ms
-  static unsigned long    lastQuery    = 0UL; // Last read time, ms
-  static unsigned long    lastRead     = 0UL; // Last read time, ms
-  static unsigned long    lastSerial   = 0UL; // Last Serial print time, ms
-  static double           tFilter;            // Modeled temp, F
+  bool checkPot = false;   // Read the POT, T/F
+  static unsigned long lastReadTp   = 0UL; // Last readTp time, ms
+  static unsigned long lastDwellTp  = 0UL; // Last dwellTp time, ms
+  static unsigned long lastControl  = 0UL; // Last control law time, ms
+  static unsigned long lastDisplay  = 0UL; // Las display time, ms
+  static unsigned long lastFilter   = 0UL; // Last filter time, ms
+  static unsigned long lastModel    = 0UL; // Las model time, ms
+  static unsigned long lastPublishP = 0UL; // Last publish time, ms
+  static unsigned long lastQuery    = 0UL; // Last read time, ms
+  static unsigned long lastRead     = 0UL; // Last read time, ms
+  static unsigned long lastSerial   = 0UL; // Last Serial print time, ms
+  static double tFilter;   // Modeled temp, F
 
   // Sequencing
   filter = ((now-lastFilter)>=FILTER_DELAY) || reset>0;
@@ -423,6 +426,47 @@ void loop()
     delay ( bare_wait );
   }
   run_time += T;
+  // Initialize scheduling logic - don't change on boot
+  static int lastChangedPot = potValue;
+  static int lastChangedWebDmd = webDmd;
+  // static int lastChangedSched = schdDmd;
+  // If user has adjusted the potentiometer (overrides schedule until next schedule change)
+  // Use potValue for checking because it has more resolution than the integer potDmd
+  if ( fabsf(potValue-lastChangedPot)>16 && checkPot )  // adjust from 64 because my range is 1214 not 4095
+  {
+      controlMode     = POT;
+      int t = min(max(MINSET, potDmd), MAXSET);
+      setSaveDisplayTemp(t);
+      held = false;  // allow the pot to override the web demands.  HELD allows web to override schd.
+      if (debug>0) Serial.printf("Setpoint based on pot:  %d\n", t);
+      lastChangedPot = potValue;
+  }
+  //
+  // Otherwise if web Blynk has adjusted setpoint (overridden temporarily by pot, until next web adjust)
+  // The held construct ensures that temp setting latched in by HOLD in Blynk cannot be accidentally changed
+  // The webHold construct ensures that pushing HOLD in Blynk causes control to snap to the web demand
+  else if ( ((abs(webDmd-lastChangedWebDmd)>0)  & (!held)) | (webHold & (webHold!=lastHold)) )
+  {
+    controlMode     = WEB;
+    int t = min(max(MINSET, webDmd), MAXSET);
+    setSaveDisplayTemp(t);
+    if (debug>0) Serial.printf("Setpoint based on web:  %d\n", t);
+    lastChangedWebDmd   = webDmd;
+  }
+  else
+  {
+    controlMode = AUTO;
+    int t = min(max(MINSET, NOMSET), MAXSET);
+    setSaveDisplayTemp(t);
+    if (debug>0) Serial.printf("Setpoint based on auto:  %d\n", t);
+  }
+  if (webHold!=lastHold)
+  {
+    lastHold    = webHold;
+    held        = webHold;
+    saveTemperature(set, webDmd, held, EEPROM_ADDR);
+  }
+
   if ( debug>3 ) { Serial.print(F("debug loop message here=")); Serial.println(F(", ")); };
 
   #ifndef NO_WEATHER_HOOK
