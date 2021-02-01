@@ -322,7 +322,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,pcnt_pot,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,pcnt_pot,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -727,8 +727,8 @@ void publish4(void)
 void publish_particle(unsigned long now, bool publishP, double cmd)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%c", \
-    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot,'\0');
+  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%ld,%c", \
+    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty,'\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
