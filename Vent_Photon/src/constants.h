@@ -39,6 +39,8 @@
 //#define NO_BLYNK              // Turn off Blynk functions.  Interact using Particle cloud
 //#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
 //#define BARE                  // Run without peripherals, except maybe a POT
+#include "local_config.h"       // this is not in GitHub repository.  Normally empty file
+
 
 // Test feature usually commented
 //#define  FAKETIME                         // For simulating rapid time passing of schedule
@@ -55,7 +57,7 @@ const int8_t debug = 5;         // Level of debug printing (3)
 #define MAXSET 75               // Maximum setpoint allowed (75), F
 #define CONTROL_DELAY    2000UL     // Control law wait, ms (5000)
 #define MODEL_DELAY      5000UL     // Model wait, ms (5000)
-#define PUBLISH_DELAY    30000UL    // Time between cloud updates, ms (30000UL)
+#define PUBLISH_DELAY    10000UL    // Time between cloud updates, ms (30000UL)
 #define PUBLISH_PARTICLE_DELAY 2000UL // Particle cloud updates (5000UL)
 #define READ_DELAY       1000UL     // Sensor read wait (5000, 100 for stress test), ms (1000UL)
 #define QUERY_DELAY      900000UL   // Web query wait (15000, 100 for stress test), ms (900000UL)
@@ -71,8 +73,10 @@ const int8_t debug = 5;         // Level of debug printing (3)
 #define DWELL_TP_DELAY   30000UL    // Time between Tp read shutdowns (30000UL = 30 sec)
 
 #ifdef BARE
+#define BARE_PHOTON
 const boolean bare = true;  // Force continuous calibration mode to run with bare boards (false)
 #else
+#undef BARE_PHOTON
 const boolean bare = false;  // Force continuous calibration mode to run with bare boards (false)
 #endif
 

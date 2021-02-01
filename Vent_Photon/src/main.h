@@ -223,6 +223,8 @@ double prop = 0;            // Control proportional output, %
 double cont = 0;            // Total control output, %
 double err = 0;             // Control error, F
 bool lastHold = false;      // Web toggled permanent and acknowledged
+unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
+int lastChangedWebDmd = webDmd;
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -269,6 +271,9 @@ void setup()
 
     // PWM Control
     pinMode(pwm_pin, OUTPUT);
+
+    // Initialize schedule
+    setSaveDisplayTemp(0);  // assure user reset happened
 
     // I2C
     if ( !bare )
@@ -380,6 +385,12 @@ void loop()
   // Blynk
   Blynk.run();
   blynk_timer_1.run(); blynk_timer_2.run(); blynk_timer_3.run(); blynk_timer_4.run(); 
+  if (millis() - lastSync > ONE_DAY_MILLIS)
+  {
+    // Request time synchronization from the Particle Cloud once per day
+    Particle.syncTime();
+    lastSync = millis();
+  }
 
   // Particle
   publishP  = ((now-lastPublishP) >= PUBLISH_PARTICLE_DELAY);
@@ -426,9 +437,23 @@ void loop()
     delay ( bare_wait );
   }
   run_time += T;
+  // Scheduling logic
+  // 1.  Pot has highest priority
+  //     a.  Pot will not hold past next schedule change
+  //     b.  Web change will override it
+  // 2.  Web Blynk has next highest priority
+  //     a.  Web will hold only if HOLD is on
+  //     b.  Web will HOLD indefinitely.
+  //     c.  When Web is HELD, all other inputs are ignored
+  // 3.  Finally the schedule gets it's say
+  //     a.  Holds last number until time at next change
+  //
+  // Notes:
+  // i.  webDmd is transmitted by Blynk to Photon only when it changes
+  // ii. webHold is transmitted periodically by Blynk to Photon
+
   // Initialize scheduling logic - don't change on boot
   static int lastChangedPot = potValue;
-  static int lastChangedWebDmd = webDmd;
   // static int lastChangedSched = schdDmd;
   // If user has adjusted the potentiometer (overrides schedule until next schedule change)
   // Use potValue for checking because it has more resolution than the integer potDmd
@@ -438,7 +463,7 @@ void loop()
       int t = min(max(MINSET, potDmd), MAXSET);
       setSaveDisplayTemp(t);
       held = false;  // allow the pot to override the web demands.  HELD allows web to override schd.
-      if (debug>0) Serial.printf("Setpoint based on pot:  %d\n", t);
+      if ( debug>0 ) Serial.printf("Setpoint based on pot:  %d\n", t);
       lastChangedPot = potValue;
   }
   //
@@ -450,22 +475,26 @@ void loop()
     controlMode     = WEB;
     int t = min(max(MINSET, webDmd), MAXSET);
     setSaveDisplayTemp(t);
-    if (debug>0) Serial.printf("Setpoint based on web:  %d\n", t);
+    if (debug>0) Serial.printf("**********************Setpoint based on web:  %d\n", t);
     lastChangedWebDmd   = webDmd;
   }
-  else
+  else if ( !held )
   {
     controlMode = AUTO;
     int t = min(max(MINSET, NOMSET), MAXSET);
     setSaveDisplayTemp(t);
-    if (debug>0) Serial.printf("Setpoint based on auto:  %d\n", t);
+    if (debug>0) Serial.printf("******************Setpoint based on auto:  %d\n", t);
   }
-  if (webHold!=lastHold)
+  if ( webHold!=lastHold )
   {
     lastHold    = webHold;
     held        = webHold;
     saveTemperature(set, webDmd, held, EEPROM_ADDR);
   }
+  if ( controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO\n");
+  else if ( controlMode==WEB ) Serial.printf("*******************Setpoint WEB\n");
+  else if ( controlMode==POT ) Serial.printf("*******************Setpoint POT\n");
+  else Serial.printf("*******************unknown controlMode %d\n", controlMode);
 
   if ( debug>3 ) { Serial.print(F("debug loop message here=")); Serial.println(F(", ")); };
 
@@ -649,7 +678,7 @@ void publish1(void)
     Blynk.virtualWrite(V0,  duty);
     Blynk.virtualWrite(V2,  Ta_Sense);
     Blynk.virtualWrite(V3,  hum);
-    Blynk.virtualWrite(V4,  tempComp);
+    //Blynk.virtualWrite(V4,  tempComp);
     Blynk.virtualWrite(V5,  Tp_Sense);
   #endif
 }
@@ -659,9 +688,8 @@ void publish1(void)
 void publish2(void)
 {
   #ifndef NO_BLYNK
-    static int lastChangedWebDmd = webDmd;
     if (debug>4) Serial.printf("Blynk write2\n");
-    Blynk.virtualWrite(V7,  controlTime);
+    Blynk.virtualWrite(V7,  held);
     Blynk.virtualWrite(V8,  updateTime);
     Blynk.virtualWrite(V9,  potDmd);
     Blynk.virtualWrite(V10, lastChangedWebDmd);
