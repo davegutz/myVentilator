@@ -217,7 +217,7 @@ const int EEPROM_ADDR = 1;  // Flash address
 #endif
 double tempf;               // webhook OAT, deg F
 double integ = 0;           // Control integrator output, %
-double G = 0.080;           // Control gain, r/s = %/F (0.003)
+double G = 0.030;           // Control gain, r/s = %/F (0.003)
 double tau = 600;           // Control lead, s  (30)
 double prop = 0;            // Control proportional output, %
 double cont = 0;            // Total control output, %
