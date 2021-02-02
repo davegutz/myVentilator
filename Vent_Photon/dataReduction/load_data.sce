@@ -30,6 +30,8 @@ function [D, TD, first] = load_data(data_t, data_d)
     D.prop = data_d(:, 11);
     D.integ = data_d(:, 12);
     D.cont = data_d(:, 13);
+    D.pot_val = data_d(:, 14);
+    D.duty = data_d(:, 15);
     first = 1;
 endfunction
 
@@ -47,5 +49,7 @@ function B = load_buffer(D, first, last);
     B.prop = D.prop(first:last);
     B.integ = D.integ(first:last);
     B.cont = D.cont(first:last);
+    B.pot_val = D.pot_val(first:last);
+    B.duty = D.duty(first:last);
 endfunction
 
