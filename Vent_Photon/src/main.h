@@ -185,7 +185,7 @@ double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
 bool webHold = false;       // Web permanence request
 int potValue = 65;          // Dial raw value, F
-int webDmd = 65;            // Web sched, F
+double webDmd = 65.0;       // Web sched, F
 double pcnt_pot = 0;        // Potentiometer read, % of 0-10v
 double pcnt_tach = 0;       // Tach read, % of 0-10v
 uint32_t duty = 0;          // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
@@ -194,7 +194,7 @@ String hmString = "00:00";  // time, hh:mm
 bool call = false;          // Heat demand to relay control
 bool held = false;          // doomed parameter
 double callCount;           // Floating point of bool call for calculation
-int set = 65;               // Selected sched, F
+double set = 65.0;          // Selected sched, F
 double tempComp;            // Sensed compensated temp, F
 int potDmd = 0;             // Pot value, deg F
 int schdDmd = 62;           // Sched raw value, F
@@ -224,7 +224,7 @@ double cont = 0;            // Total control output, %
 double err = 0;             // Control error, F
 bool lastHold = false;      // Web toggled permanent and acknowledged
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
-int lastChangedWebDmd = webDmd;
+double lastChangedWebDmd = webDmd;
 double cmd = 0;                  // PWM duty cycle output
 
 #ifdef PHOTON
@@ -246,7 +246,7 @@ void publish1(void); void publish2(void); void publish3(void); void publish4(voi
 void publish_particle(unsigned long now, bool publishP, double cmd);
 int particleHold(String command);
 int particleSet(String command);
-int setSaveDisplayTemp(int t);
+int setSaveDisplayTemp(double t);
 void saveTemperature(const int set, const int webDmd, const int held, const int addr);
 void gotWeatherData(const char *name, const char *data);
 void getWeather(void);
@@ -274,7 +274,7 @@ void setup()
     pinMode(pwm_pin, OUTPUT);
 
     // Initialize schedule
-    setSaveDisplayTemp(0);  // assure user reset happened
+    setSaveDisplayTemp(0.0);  // assure user reset happened
 
     // I2C
     if ( !bare )
@@ -458,10 +458,10 @@ void loop()
   if ( fabsf(potValue-lastChangedPot)>16 && checkPot )  // adjust from 64 because my range is 1214 not 4095
   {
       controlMode     = POT;
-      int t = min(max(MINSET, potDmd), MAXSET);
+      double t = min(max(MINSET, potDmd), MAXSET);
       setSaveDisplayTemp(t);
       held = false;  // allow the pot to override the web demands.  HELD allows web to override schd.
-      if ( debug>0 ) Serial.printf("Setpoint based on pot:  %d\n", t);
+      if ( debug>0 ) Serial.printf("Setpoint based on pot:  %f\n", t);
       lastChangedPot = potValue;
   }
   //
@@ -471,23 +471,23 @@ void loop()
   else if ( ((abs(webDmd-lastChangedWebDmd)>0)  & (!held)) | (webHold & (webHold!=lastHold)) )
   {
     controlMode     = WEB;
-    int t = min(max(MINSET, webDmd), MAXSET);
+    double t = min(max(MINSET, webDmd), MAXSET);
     setSaveDisplayTemp(t);
-    if (debug>0) Serial.printf("**********************Setpoint based on web:  %d\n", t);
+    if (debug>0) Serial.printf("**********************Setpoint based on web:  %f\n", t);
     lastChangedWebDmd   = webDmd;
   }
   else if ( !held )
   {
     controlMode = AUTO;
-    int t = min(max(MINSET, NOMSET), MAXSET);
+    double t = min(max(MINSET, NOMSET), MAXSET);
     setSaveDisplayTemp(t);
-    if (debug>0) Serial.printf("******************Setpoint based on auto:  %d\n", t);
+    if (debug>0) Serial.printf("******************Setpoint based on auto:  %f\n", t);
   }
   if ( webHold!=lastHold )
   {
     lastHold    = webHold;
     held        = webHold;
-    saveTemperature(set, webDmd, held, EEPROM_ADDR);
+    saveTemperature(int(set), int(webDmd), held, EEPROM_ADDR);
   }
   if ( controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO\n");
   else if ( controlMode==WEB ) Serial.printf("*******************Setpoint WEB\n");
@@ -517,11 +517,12 @@ void loop()
   {
     if ( !dwellTp )  // Freeze control if dwellTp
     {
+      // TODO:  derivative action (30 sec lead) needed to compensate for duct heat soak (30 sec lag)?
       err = set - Ta_Sense;
       double err_comp = err * G;
-      prop = max(min(err_comp * tau, 20), -20);
-      integ = max(min(integ + deltaT*err_comp, 100-prop), -prop);
-      cont = max(min(integ+prop, 100), 0);
+      prop = max(min(err_comp * tau, 20), -20);   // TODO the prop limits do nothing
+      integ = max(min(integ + deltaT*err_comp, pcnt_pot-prop), -prop);
+      cont = max(min(integ+prop, pcnt_pot), 0);
     }
     cmd = max(min(min(pcnt_pot, cont),100.0), 0);
     duty = min(uint32_t(cmd*255.0/100.0), uint32_t(255));
@@ -757,7 +758,7 @@ void publish_particle(unsigned long now, bool publishP, double cmd)
 
 
 // Process a new temperature setting.   Display and save it.
-int setSaveDisplayTemp(int t)
+int setSaveDisplayTemp(double t)
 {
     set = t;
     switch(controlMode)
@@ -769,7 +770,7 @@ int setSaveDisplayTemp(int t)
         case WEB:   break;
         case SCHD:  break;
     }
-    saveTemperature(set, webDmd, held, EEPROM_ADDR);
+    saveTemperature(set, int(webDmd), held, EEPROM_ADDR);
     return set;
 }
 
@@ -781,7 +782,7 @@ int setSaveDisplayTemp(int t)
 BLYNK_WRITE(V4) {
     if (param.asInt() > 0)
     {
-        webDmd = (int)param.asDouble();
+        webDmd = param.asDouble();
     }
 }
 #endif
@@ -793,7 +794,7 @@ int particleSet(String command)
   int possibleSet = atoi(command);
   if (possibleSet >= MINSET && possibleSet <= MAXSET)
   {
-      webDmd = possibleSet;
+      webDmd = double(possibleSet);
       return possibleSet;
   }
   else return -1;
