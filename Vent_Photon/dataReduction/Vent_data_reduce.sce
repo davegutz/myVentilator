@@ -99,6 +99,8 @@ if debug>2 then serial_print_inputs_1(); end
 // Zoom last buffer
 if plotting then
     zoom([-3600 D.time(last)])
+    zoom([-900 D.time(last)])
+    zoom([-120 D.time(last)])
     if debug>1 then
         plot_all()
     end
