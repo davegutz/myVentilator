@@ -32,7 +32,8 @@ function [D, TD, first] = load_data(data_t, data_d)
     D.integ = data_d(:, 12);
     D.cont = data_d(:, 13);
     D.pcnt_pot = data_d(:, 14);
-    D.duty = data_d(:, 15);
+    D.duty = data_d(:, 15)/2.55;
+    D.cmd_scaled = D.cmd/100*20+60;
     first = 1;
 endfunction
 
@@ -52,5 +53,6 @@ function B = load_buffer(D, first, last);
     B.cont = D.cont(first:last);
     B.pcnt_pot = D.pcnt_pot(first:last);
     B.duty = D.duty(first:last);
+    B.cmd_scaled = D.cmd_scaled(first:last);
 endfunction
 
