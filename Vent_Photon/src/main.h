@@ -524,7 +524,7 @@ void loop()
       cont = max(min(integ+prop, 100), 0);
     }
     cmd = max(min(min(pcnt_pot, cont),100.0), 0);
-    duty = uint32_t(cmd*256.0/100.0);
+    duty = min(uint32_t(cmd*255.0/100.0), uint32_t(255));
     if ( Tp_Sense<74.0 ) duty = 0;
     if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>23 ) duty = 0;
     if ( dwellTp ) duty = 0;
