@@ -14,7 +14,7 @@ function plot_data(%zoom, %loc)
     subplot(211)
     overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.OAT'], ['r-', 'g-', 'm-', 'b-'], 'Data temperatures', 'time, s', %zoom)
     subplot(212)
-    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.pcnt_pot', 'P.D.cmd'], ['r--', 'g--', 'b-', 'b--', 'c-'], 'Data cmd', 'time, s', %zoom)
+    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.pcnt_pot', 'P.D.cmd', 'P.D.duty'], ['r--', 'g--', 'b-', 'b--', 'c-', 'm--'], 'Data cmd', 'time, s', %zoom)
 endfunction
 
 function plot_compare(%zoom, %loc)
@@ -28,14 +28,7 @@ function plot_compare(%zoom, %loc)
     end
 
     figs($+1) = figure("Figure_name", 'Data v Model -'+data_file, "Position", [%loc, %size]);
-//    subplot(221)
-//    overplot(['P.D.ir_rate'], ['b-'], 'Rate Compare', 'time, s', %zoom, [-10000 5000])
-//    subplot(222)
-//    overplot(['P.D.ir_filt'], ['b-'], 'Filt Compare', 'time, s', %zoom, [-10000 5000])
-//    subplot(223)
-//    overplot(['P.D.red', 'P.D.ir'], ['r-', 'b-'], 'Data Compare')
-//    subplot(224)
-//    overplot(['P.D.hr', 'P.D.spo2'], ['r-', 'b-'], 'Data')
+    overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.cmd_scaled'], ['r-', 'g-', 'm-', 'k-'], 'Data temperatures', 'time, s', %zoom)
 
 endfunction
 
@@ -62,6 +55,7 @@ function plot_all(%zoom, %loc)
     P.D.cont = struct('time', D.time, 'values', D.cont);
     P.D.pcnt_pot = struct('time', D.time, 'values', D.pcnt_pot);
     P.D.duty = struct('time', D.time, 'values', D.duty);
+    P.D.cmd_scaled = struct('time', D.time, 'values', D.cmd_scaled);
 
     P.B.set = struct('time', B.time, 'values', B.set);
     P.B.Tp_Sense = struct('time', B.time, 'values', B.Tp_Sense);
@@ -76,9 +70,10 @@ function plot_all(%zoom, %loc)
     P.B.cont = struct('time', B.time, 'values', B.cont);
     P.B.pcnt_pot = struct('time', B.time, 'values', B.pcnt_pot);
     P.B.duty = struct('time', B.time, 'values', B.duty);
+    P.B.cmd_scaled = struct('time', B.time, 'values', B.cmd_scaled);
 
     plot_data(%zoom, %loc + [30 30]);
-    //plot_compare(%zoom, %loc + [60 60]);
+    plot_compare(%zoom, %loc + [60 60]);
 endfunction
 
 function zoom(%zoom, %loc)

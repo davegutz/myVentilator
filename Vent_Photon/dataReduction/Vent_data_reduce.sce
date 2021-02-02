@@ -60,7 +60,7 @@ mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 run_name = 'debug';
 data_file = run_name + '.csv';
 [data_t, data_d] = load_csv_data(data_file);
-debug=1; plotting = %t; first_init_override = 1;
+debug=2; plotting = %t; first_init_override = 1;
 
 if size(data_d,1)==0 then
     error('debug.csv did not load.  Quitting\n')
@@ -73,7 +73,7 @@ else
     first_init_override = 0;
 end
 first = first_init;
-last = size(data_d, 1);
+last = D.N;
 B = load_buffer(D, first, last);
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -93,13 +93,13 @@ B = load_buffer(D, first, last);
 //B = load_buffer(D, first, last, %f);
 
 // Detail serial print
-if debug>1 then serial_print_inputs_1(); end
+if debug>2 then serial_print_inputs_1(); end
 
 // Plots
 // Zoom last buffer
 if plotting then
-    zoom([D.time(first) D.time(last)])
-    if debug==3 then
+    zoom([-3600 D.time(last)])
+    if debug>1 then
         plot_all()
     end
 end
