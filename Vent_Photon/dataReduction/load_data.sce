@@ -17,8 +17,9 @@ endfunction
 
 function [D, TD, first] = load_data(data_t, data_d)
     D.N = size(data_d, 1);
+    time_adj = data_d(D.N, 2);
     TD.hmString = data_t(:, 1);
-    D.time = data_d(:, 2);
+    D.time = data_d(:, 2) - time_adj;
     D.set = data_d(:, 3);
     D.Tp_Sense = data_d(:, 4);
     D.Ta_Sense = data_d(:, 5);
@@ -30,7 +31,7 @@ function [D, TD, first] = load_data(data_t, data_d)
     D.prop = data_d(:, 11);
     D.integ = data_d(:, 12);
     D.cont = data_d(:, 13);
-    D.pot_val = data_d(:, 14);
+    D.pcnt_pot = data_d(:, 14);
     D.duty = data_d(:, 15);
     first = 1;
 endfunction
@@ -49,7 +50,7 @@ function B = load_buffer(D, first, last);
     B.prop = D.prop(first:last);
     B.integ = D.integ(first:last);
     B.cont = D.cont(first:last);
-    B.pot_val = D.pot_val(first:last);
+    B.pcnt_pot = D.pcnt_pot(first:last);
     B.duty = D.duty(first:last);
 endfunction
 

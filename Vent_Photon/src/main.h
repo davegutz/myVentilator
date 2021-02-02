@@ -217,7 +217,7 @@ const int EEPROM_ADDR = 1;  // Flash address
 #endif
 double tempf;               // webhook OAT, deg F
 double integ = 0;           // Control integrator output, %
-double G = 0.017;           // Control gain, r/s = %/F (0.017)
+double G = 0.003;           // Control gain, r/s = %/F (0.003)
 double tau = 30;            // Control lead, s  (30)
 double prop = 0;            // Control proportional output, %
 double cont = 0;            // Total control output, %
@@ -322,7 +322,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,pcnt_pot,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};

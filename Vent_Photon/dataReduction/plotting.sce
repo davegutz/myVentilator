@@ -11,12 +11,10 @@ function plot_data(%zoom, %loc)
         %loc = default_loc + [50, 50];
     end
     figs($+1) = figure("Figure_name", 'Data', "Position", [%loc, %size]);
-    subplot(221)
+    subplot(211)
     overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.OAT'], ['r-', 'g-', 'm-', 'b-'], 'Data temperatures', 'time, s', %zoom)
-    subplot(222)
-    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.pot_val', 'P.D.cmd'], ['r--', 'g--', 'b-', 'b--', 'c-'], 'Data cmd', 'time, s', %zoom)
-    subplot(223)
-    overplot(['P.D.duty'], ['r-'], 'Data duty', 'time, s', %zoom)
+    subplot(212)
+    overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.pcnt_pot', 'P.D.cmd'], ['r--', 'g--', 'b-', 'b--', 'c-'], 'Data cmd', 'time, s', %zoom)
 endfunction
 
 function plot_compare(%zoom, %loc)
@@ -62,7 +60,7 @@ function plot_all(%zoom, %loc)
     P.D.prop = struct('time', D.time, 'values', D.prop);
     P.D.integ = struct('time', D.time, 'values', D.integ);
     P.D.cont = struct('time', D.time, 'values', D.cont);
-    P.D.pot_val = struct('time', D.time, 'values', D.pot_val);
+    P.D.pcnt_pot = struct('time', D.time, 'values', D.pcnt_pot);
     P.D.duty = struct('time', D.time, 'values', D.duty);
 
     P.B.set = struct('time', B.time, 'values', B.set);
@@ -76,7 +74,7 @@ function plot_all(%zoom, %loc)
     P.B.prop = struct('time', B.time, 'values', B.prop);
     P.B.integ = struct('time', B.time, 'values', B.integ);
     P.B.cont = struct('time', B.time, 'values', B.cont);
-    P.B.pot_val = struct('time', B.time, 'values', B.pot_val);
+    P.B.pcnt_pot = struct('time', B.time, 'values', B.pcnt_pot);
     P.B.duty = struct('time', B.time, 'values', B.duty);
 
     plot_data(%zoom, %loc + [30 30]);
