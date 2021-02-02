@@ -1,3 +1,22 @@
+# curlParticle.py
+# Stream Particle cloud data from Vent_Photon.ino to local files for local use.
+# Edit Vent_Photon in Particle Workbench Visual c++ (main.h).
+# Get cURL link from https://console.particle.io/events.   Click on "view events on a terminal"
+# That's wehre the link to STREAM_URL came from.
+# Running:
+# 	install python:  3.6.8 is latest that supports curl.   Pick option to add python to path.
+# 	install dependencies:  cygwin> py -m pip install pycurl certifi
+#	running:   	cygwin> cd /cygdrive/c/Users/Dave/Documents/GitHub/myVentilator/Vent_Photon/dataReduction
+#				cygwin> py curlParticle.py
+# Plotting:
+#	install sciLab 6.1 or later.  (Didn't work with 5.5.2)
+# 	install pdftk (use win8 compatibility)
+# 	windows - dataReduction> double-click on Vent_data_reduce.sce
+# <or> open debug.csv in msexcel
+# MIT License
+#
+# 2021-Feb-02 	Dave Gutz 		Create
+
 import sys
 import pycurl
 import certifi
