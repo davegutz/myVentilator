@@ -11,6 +11,8 @@
 #ifndef _myFilters_H
 #define _myFilters_H
 
+#define DEAD(X, HDB)  ( max(X-HDB, 0) + min(X+HDB, 0) )
+
 class Debounce
 {
 public:

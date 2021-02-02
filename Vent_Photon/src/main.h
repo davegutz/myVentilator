@@ -158,6 +158,7 @@ using namespace std;
 
 #include "constants.h"
 #include "myAuth.h"
+#include "myFilters.h"
 /* This file myAuth.h is not in Git repository because it contains personal information.
 Make it yourself.   It should look like this, with your personal authorizations:
 (Note:  you don't need a valid number for one of the blynkAuth if not using it.)
@@ -219,6 +220,7 @@ double tempf;               // webhook OAT, deg F
 double integ = 0;           // Control integrator output, %
 double G = 0.030;           // Control gain, r/s = %/F (0.003)
 double tau = 600;           // Control lead, s  (30)
+double DB = 0.5;            // Half deadband width, deg F
 double prop = 0;            // Control proportional output, %
 double cont = 0;            // Total control output, %
 double err = 0;             // Control error, F
@@ -519,7 +521,7 @@ void loop()
     {
       // TODO:  derivative action (30 sec lead) needed to compensate for duct heat soak (30 sec lag)?
       err = set - Ta_Sense;
-      double err_comp = err * G;
+      double err_comp = DEAD(err, DB)*G;
       prop = max(min(err_comp * tau, 20), -20);   // TODO the prop limits do nothing
       integ = max(min(integ + deltaT*err_comp, pcnt_pot-prop), -prop);
       cont = max(min(integ+prop, pcnt_pot), 0);
