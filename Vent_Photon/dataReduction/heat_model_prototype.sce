@@ -31,9 +31,11 @@ function [Qduct, mdot, hf] = flow_model(cmd, rho, mu);
     // Pfan     Fan pressure, in H20 at 75F
     // mdotd    Duct = Fan airflow, lbm/hr at 75F
     // hf       Forced convection, BTU/hr/ft^2/F
+    // rho      Density, lbm/ft^3
+    // mu       Viscosity air, lbm/ft/hr
     Qduct = -0.005153*cmd^2 + 2.621644*cmd;  // CFM
-    mdot = Qduct * rho * 60;
-    Pfan = 5.592E-05*cmd^2 + 3.401E-03*cmd - 2.102E-02;
+    mdot = Qduct * rho * 60;   // lbm/hr
+    Pfan = 5.592E-05*cmd^2 + 3.401E-03*cmd - 2.102E-02;  // in H2O
     d = 0.5;   // duct diameter, ft
     Ax = %pi*d^2/4;             // duct cross section, ft^2
     V = Qduct / Ax * 60;        // ft/hr
@@ -59,7 +61,11 @@ function plot_heat(%zoom, %loc)
     subplot(221)
     overplot(['P.C.cmd', 'P.C.cfm'], ['k-', 'b-'], 'Flow', 'time, s', %zoom)
     subplot(222)
-    overplot(['P.C.Tp', 'P.C.Tdl', 'P.C.Tds', 'P.C.Tdo', 'P.C.Ta', 'P.C.OAT'], ['r-', 'r--', 'g--', 'g-', 'c-', 'm-'], 'Data cmd', 'time, s', %zoom)
+    overplot(['P.C.Tp', 'P.C.Tml', 'P.C.Tms', 'P.C.Tdso', 'P.C.Ta', 'P.C.Tw', 'P.C.OAT'], ['k-', 'r--', 'm--', 'k-', 'c-', 'k-', 'm-'], 'Data cmd', 'time, s', %zoom)
+
+    subplot(223)
+    overplot(['P.C.Qdli', 'P.C.Qdsi', 'P.C.Qwi', 'P.C.Qwo', 'P.C.QaiMQao'], ['k-', 'b-', 'r-', 'g--', 'k--'], 'Flux', 'time, s', %zoom)
+
 endfunction
 
 
@@ -86,13 +92,31 @@ function plot_all(%zoom, %loc)
     end
     
     P.C.cmd = struct('time', C.time, 'values', C.cmd);
+    P.C.hduct = struct('time', C.time, 'values', C.hduct);
+    P.C.mdotd = struct('time', C.time, 'values', C.mdotd);
     P.C.cfm = struct('time', C.time, 'values', C.cfm);
     P.C.Tp = struct('time', C.time, 'values', C.Tp);
-    P.C.Tdl = struct('time', C.time, 'values', C.Tdl);
-    P.C.Tds = struct('time', C.time, 'values', C.Tds);
-    P.C.Tdo = struct('time', C.time, 'values', C.Tdo);
+    P.C.Tbl = struct('time', C.time, 'values', C.Tbl);
+    P.C.Tml = struct('time', C.time, 'values', C.Tml);
+    P.C.Tbs = struct('time', C.time, 'values', C.Tbs);
+    P.C.Tms = struct('time', C.time, 'values', C.Tms);
+    P.C.Tdso = struct('time', C.time, 'values', C.Tdso);
     P.C.Ta = struct('time', C.time, 'values', C.Ta);
+    P.C.Tw = struct('time', C.time, 'values', C.Tw);
     P.C.OAT = struct('time', C.time, 'values', C.OAT);
+    P.C.Qdli = struct('time', C.time, 'values', C.Qdli);
+    P.C.Qdlo = struct('time', C.time, 'values', C.Qdlo);
+    P.C.Qdsi = struct('time', C.time, 'values', C.Qdsi);
+    P.C.Qdso = struct('time', C.time, 'values', C.Qdso);
+    P.C.Qai = struct('time', C.time, 'values', C.Qai);
+    P.C.Qao = struct('time', C.time, 'values', C.Qao);
+    P.C.Qwi = struct('time', C.time, 'values', C.Qwi);
+    P.C.Qwo = struct('time', C.time, 'values', C.Qwo);
+    P.C.TmlDot = struct('time', C.time, 'values', C.TmlDot);
+    P.C.TmsDot = struct('time', C.time, 'values', C.TmsDot);
+    P.C.TaDot = struct('time', C.time, 'values', C.TaDot);
+    P.C.TwDot = struct('time', C.time, 'values', C.TwDot);
+    P.C.QaiMQao = struct('time', C.time, 'values', C.QaiMQao);
 
     plot_heat(%zoom, %loc + [30 30]);
 endfunction
@@ -107,11 +131,13 @@ endfunction
 //      Uniform mixing of duct air into room
 //      Bulk temperatures of air in muffler and duct are the supply temps
 //      Neglect radiation (we're only trying to get the shape right, then match)
-Aw = 300;   // Surface area room ws and ceiling, ft^2
+//      Insulation mass Tb splits the R-value between inside and outside transfer
+//      Neglect convection draft from Kitchen that occurs at very low mdot
+Aw = 12*12 + 7*12*3;   // Surface area room walls and ceiling, ft^2
 Adli = 9;   // Surface area inner muffler box, ft^ft
 Adlo = 16;  // Surface area inner muffler box, ft^ft
 Adsi = 40;  // Surface area inner duct, ft^ft
-Adso = 150; // Surface area inner duct, ft^ft
+Adso = 150/2; // Surface area inner duct, ft^ft  (half buried)
 Cpa = 0.23885; // Heat capacity of dry air at 80F, BTU/lbm/F (1.0035 J/g/K)
 Cpl = 0.2;  // Heat capacity of muffler box, BTU/lbm/F
 Cps = 0.4;  // Heat capacity of duct insulation, BTU/lbm/F
@@ -127,6 +153,13 @@ rhoa = .0739;    // Density of dry air at 80F, lbm/ft^3
 mua = 0.04379;  // Viscosity air, lbm/ft/hr
 Mair = 8*12*12 * rhoa; // Mass of air in room, lbm
 
+R8 = 45;  // Resistance of R8 duct insulation, F-ft^2/BTU
+// 5.68 F-ft^2/(BTU/hr).   R8 = 8*5.68 = 45 F-ft^2/(BTU/hr)
+R16 = 90;  // Resistance of R8 duct insulation, F-ft^2/(BTU/hr)
+R22 = 125;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+R32 = 180;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+
 //mdotd     Mass flow rate of air through duct, lbm/sec
 // Pfan     Fan pressure, in H20 at 75F, assume = 80F
 // Qduct    Duct = Fan airflow, CFM at 75F, assume = 80F
@@ -141,7 +174,7 @@ Mair = 8*12*12 * rhoa; // Mass of air in room, lbm
 //  R ~ 2 - 100  BTU/hr/ft^2/F
 
 // Loop for time transient
-dt = 2;   // sec time step
+dt = 1;   // sec time step
 Tp = 80;  // Duct supply, plenum temperature, F
 plotting = 1;
 debug = 2;
@@ -151,59 +184,134 @@ run_name = 'heat_model';
 
 // Initialize
 OAT = 30;   // Outside air temperature, F
-Tdl = 75;   // Muffler box temp, F
+Tbl = Tp;
 Tds = 75;   // Duct wall temp, F
 Tw = 50;    // House wall temp F
 Ta = 65;    // Air temp, F
-cmdi = 1;
-cmdf = 1;
-//for time = 0:dt:3600
+cmdi = 100;
+cmdf = 100;
+
+Rsl = R22/((Adli+Adlo)/2) + 1/ho/Adlo;
+Rsli = R22/2/Adli;
+Rslo = R22/2/Adlo + 1/ho/Adlo;
+Hdso = ho*Adso;
+
+Rsa = 1/hi/Aw + R22/Aw + 1/ho/Aw;
+Rsai = 1/hi/Aw + R22/2/Aw;
+Rsao = R22/2/Aw + 1/ho/Aw;
+Hai = hi*Aw;
+Hao = ho*Aw;
+
+Rs = R8;
 C = "";
-for time = 0:dt:14
+for time = 0:dt:10
     if time<10 then, cmd = cmdi; else cmd = cmdf;  end
     [cfm, mdotd, hduct] = flow_model(cmd, rhoa, mua);
+    Tdli = Tp;
+    Tbl = Tp;
+    Hdli = hduct*Adli;
+    Hdsi = hduct*Adsi;
+    Rss = 1/hduct/Adsi + Rs/((Adsi+Adso)/2) + 1/ho/Adso;
+    Rssi = 1/hduct/Adsi + Rs/2/Adsi;
+    Rsso = Rs/2/Adso + 1/ho/Adso;
+    Hdlo = ho*Adlo;
+
+    // Init logic
+    if time<1e-12, then
+
+        // Exact solution muffler box
+        Tdli = Tp;
+        Tbl = (2*mdotd*Cpa*Rsl*Tdli + OAT) / (2*mdotd*Cpa*Rsl + 1);
+        Qdl = (Tbl - OAT) / Rsl;
+        Tml = Tbl - Qdl * Rsli;
+        Tmli = Tbl - Qdl / Hdli;
+        Tmlo = OAT + Qdl / Hdlo;
+        Tdlo = 2*Tbl - Tdli;
+        Qdla = (Tdli - Tdlo)*mdotd*Cpa;  // BTU/hr
+                
+        // Exact solution duct
+        Tdsi = Tdlo;
+        Tbs = (2*mdotd*Cpa*Rss*Tdsi + OAT) / (2*mdotd*Cpa*Rss + 1);
+        Qds = (Tbs - OAT) / Rss;
+        Tms = Tbs - Qds * Rssi;
+        Tmsi = Tbs - Qds / Hdsi;
+        Tmso = OAT + Qds / Hdso;
+        Tdso = 2*Tbs - Tdsi;
+        Qdsa = (Tdsi - Tdso)*mdotd*Cpa;  // BTU/hr
+
+        // Exact solution room
+        Ta = (mdotd*Cpa*Rsa*Tdso + OAT) / (mdotd*Cpa*Rsa + 1);
+        Qa = (Ta - OAT) / Rsa;
+        Tma = Ta - Qa * Rsai;
+        Tmai = Ta - Qa / Hai;
+        Tmao = OAT + Qa / Hao;
+        Qao = (Tdso - Ta)*mdotd*Cpa;
+
+    end
 
     // Flux
-    Tbl = Tp;
-    Qdli = (Tbl - Tdl) / hduct / Adli;
-    Qdlo = (Tdl - OAT) / hi / Adlo;
-    Tbs = Tp - Qdli / mdotd / Cpa;
-    Qdsi = (Tbs - Tds) / hduct / Adsi;
-    Qdso = (Tds - OAT) / hi / Adso;  // Attic is still air but cold
-    Qwi = (Ta - Tw) / hi / Aw;
-    Qwo = (Tw - OAT) / ho / Aw;
-    Tdo = Tp - (Qdsi + Qdli) / mdotd / Cpa;
-    Qai = Tdo * Cpa * mdotd;
+    Tbl = (2*mdotd*Cpa*Rsli*Tdli + Tml) / (2*mdotd*Cpa*Rsli + 1);
+    Tdlo = 2*Tbl - Tdli;
+    Qdli = (Tbl - Tml) / Rsli;
+    Qdlo = (Tml - OAT) / Rslo;
+
+    Tdsi = Tdlo;
+    Tbs = (2*mdotd*Cpa*Rssi*Tdsi + Tms) / (2*mdotd*Cpa*Rssi + 1);
+    Tdso = 2*Tbs - Tdsi;
+    Qdsi = (Tbs - Tms) / Rssi;
+    Qdso = (Tms - OAT) / Rsso;
+    
+    Qai = Tdso * Cpa * mdotd;
     Qao = Ta * Cpa * mdotd;
 
+    Qwi = (Ta - Tw) / Rsai;
+    Qwo = (Tw - OAT) / Rsao;
+
     // Derivatives
-    TdsDot = (Qdsi - Qdso) * Cps * Mds;
-    TdlDot = (Qdli - Qdlo) * Cpl * Mdl;
-    TwDot = (Qwi - Qwo) * Cpw * Mw;
-    TaDot = (Qai - Qao) * Cpa * Mair;
+    TmlDot = (Qdli - Qdlo)/3600 * Cpl * Mdl;
+    TmsDot = (Qdsi - Qdso)/3600 * Cps * Mds;
+    TaDot = (Qai - Qao - Qwi)/3600 * Cpa * Mair;
+    TwDot = (Qwi - Qwo)/3600 * Cpw * Mw;
 
     // Store results
-    if time==0 then, printf('  time,      cmd,   hduct,   cfm,    mdotd,   Tp,      Tds,     Tdl,     Tdo,    Ta,        Tw,      OAT,\n'); end
-    printf('%7.1f, %7.1f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f,\n',...
-        time, cmd, hduct, cfm, mdotd, Tp, Tds, Tdl, Tdo, Ta, Tw, OAT);
+    if debug>2 then
+        if time==0 then, printf('  time,      cmd,   hduct,   cfm,    mdotd,   Tp,      Tbl,     Tml,     Tbs,     Tms,     Tdso,    Ta,        Tw,      OAT,\n'); end
+        printf('%7.1f, %7.1f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f,\n',...
+            time, cmd, hduct, cfm, mdotd, Tp, Tbl, Tml, Tbs, Tms, Tdso, Ta, Tw, OAT);
+    end
     C.time($+1) = time;
     C.cmd($+1) = cmd;
     C.hduct($+1) = hduct;
     C.cfm($+1) = cfm;
     C.mdotd($+1) = mdotd;
-    C.Tds($+1) = Tds;
-    C.Tdl($+1) = Tdl;
-    C.Tw($+1) = Tw;
-    C.Ta($+1) = Ta;
-    C.Tdo($+1) = Tdo;
-    C.OAT($+1) = OAT;
     C.Tp($+1) = Tp;
+    C.Tbl($+1) = Tbl;
+    C.Tml($+1) = Tml;
+    C.Tbs($+1) = Tbs;
+    C.Tms($+1) = Tms;
+    C.Tdso($+1) = Tdso;
+    C.Ta($+1) = Ta;
+    C.Tw($+1) = Tw;
+    C.OAT($+1) = OAT;
+    C.Qdli = Qdli;
+    C.Qdlo = Qdlo;
+    C.Qdsi = Qdsi;
+    C.Qdso = Qdso;
+    C.Qai = Qai;
+    C.Qao = Qao;
+    C.Qwi = Qwi;
+    C.Qwo = Qwo;
+    C.TmlDot = TmlDot;
+    C.TmsDot = TmsDot;
+    C.TaDot = TaDot;
+    C.TwDot = TwDot;
+    C.QaiMQao = Qai-Qao;
     
     // Integrate
-    Tds = Tds + dt*TdsDot;
-    Tdl = Tdl + dt*TdlDot;
-    Ta = min(max(Ta + dt*TaDot, Tw), Tp);
-    Tw = min(max(Tw + dt*TwDot, OAT), Tp);
+    Tml = min(max(Tml + dt*TmlDot, OAT), Tbl);
+    Tms = min(max(Tms + dt*TmsDot, OAT), Tbs);
+    Ta = min(max(Ta + dt*TaDot, Tw), Tdso);
+    Tw = min(max(Tw + dt*TwDot, OAT), Ta);
 
 
 end
@@ -213,10 +321,7 @@ end
 C.N = size(C.time, 1);
 last = C.N;
 if plotting then
-    zoom([0 C.time(last)])
-    if debug>1 then
-        plot_all()
-    end
+  plot_all()
 end
 
 mclose('all')
