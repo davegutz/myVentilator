@@ -66,6 +66,8 @@ function plot_heat(%zoom, %loc)
     subplot(223)
     overplot(['P.C.Qdli', 'P.C.Qdsi', 'P.C.Qwi', 'P.C.Qwo', 'P.C.QaiMQao'], ['k-', 'b-', 'r-', 'g--', 'k--'], 'Flux', 'time, s', %zoom)
 
+    subplot(224)
+    overplot(['P.C.Ta', 'P.C.Tw'], ['b-', 'k-'], 'Duct', 'time, s', %zoom)
 endfunction
 
 
@@ -142,7 +144,7 @@ Cpa = 0.23885; // Heat capacity of dry air at 80F, BTU/lbm/F (1.0035 J/g/K)
 Cpl = 0.2;  // Heat capacity of muffler box, BTU/lbm/F
 Cps = 0.4;  // Heat capacity of duct insulation, BTU/lbm/F
 Cpw = 0.2;  // Heat capacity yof ws, BTU/lbm/F
-Mw = 2000;  // Mass of room ws and ceiling, lbm
+Mw = 1000;  // Mass of room ws and ceiling, lbm
 Mdl = 50;   // Mass of muffler box, lbm
 Mds = 100;  // Mass of duct, lbm
 hf = 1;     // TBD.  Rdf = hf*log10(mdot);    // Boundary layer heat resistance forced convection, BTU/hr/ft^2/F
@@ -174,7 +176,7 @@ R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
 //  R ~ 2 - 100  BTU/hr/ft^2/F
 
 // Loop for time transient
-dt = 1;   // sec time step
+dt = 20;   // sec time step
 Tp = 80;  // Duct supply, plenum temperature, F
 plotting = 1;
 debug = 2;
@@ -188,7 +190,7 @@ Tbl = Tp;
 Tds = 75;   // Duct wall temp, F
 Tw = 50;    // House wall temp F
 Ta = 65;    // Air temp, F
-cmdi = 100;
+cmdi = 10;
 cmdf = 100;
 
 Rsl = R22/((Adli+Adlo)/2) + 1/ho/Adlo;
@@ -197,15 +199,15 @@ Rslo = R22/2/Adlo + 1/ho/Adlo;
 Hdso = ho*Adso;
 
 Rsa = 1/hi/Aw + R22/Aw + 1/ho/Aw;
-Rsai = 1/hi/Aw + R22/2/Aw;
-Rsao = R22/2/Aw + 1/ho/Aw;
+Rsai = 1/hi/Aw;
+Rsao = R22/Aw + 1/ho/Aw;
 Hai = hi*Aw;
 Hao = ho*Aw;
 
 Rs = R8;
 C = "";
-for time = 0:dt:10
-    if time<10 then, cmd = cmdi; else cmd = cmdf;  end
+for time = 0:dt:3600*16
+    if time<1000 then, cmd = cmdi; else cmd = cmdf;  end
     [cfm, mdotd, hduct] = flow_model(cmd, rhoa, mua);
     Tdli = Tp;
     Tbl = Tp;
@@ -242,10 +244,11 @@ for time = 0:dt:10
         // Exact solution room
         Ta = (mdotd*Cpa*Rsa*Tdso + OAT) / (mdotd*Cpa*Rsa + 1);
         Qa = (Ta - OAT) / Rsa;
-        Tma = Ta - Qa * Rsai;
+        Tw = Ta - Qa * Rsai;
         Tmai = Ta - Qa / Hai;
         Tmao = OAT + Qa / Hao;
-        Qao = (Tdso - Ta)*mdotd*Cpa;
+        Qai = Tdso*mdotd*Cpa;
+        Qao = Ta*mdotd*Cpa;
 
     end
 
@@ -268,10 +271,10 @@ for time = 0:dt:10
     Qwo = (Tw - OAT) / Rsao;
 
     // Derivatives
-    TmlDot = (Qdli - Qdlo)/3600 * Cpl * Mdl;
-    TmsDot = (Qdsi - Qdso)/3600 * Cps * Mds;
-    TaDot = (Qai - Qao - Qwi)/3600 * Cpa * Mair;
-    TwDot = (Qwi - Qwo)/3600 * Cpw * Mw;
+    TmlDot = (Qdli - Qdlo)/3600 / (Cpl * Mdl);
+    TmsDot = (Qdsi - Qdso)/3600 / (Cps * Mds);
+    TaDot = (Qai - Qao - Qwi)/3600 / (Cpa * Mair);
+    TwDot = (Qwi - Qwo)/3600 / (Cpw * Mw);
 
     // Store results
     if debug>2 then
@@ -293,19 +296,19 @@ for time = 0:dt:10
     C.Ta($+1) = Ta;
     C.Tw($+1) = Tw;
     C.OAT($+1) = OAT;
-    C.Qdli = Qdli;
-    C.Qdlo = Qdlo;
-    C.Qdsi = Qdsi;
-    C.Qdso = Qdso;
-    C.Qai = Qai;
-    C.Qao = Qao;
-    C.Qwi = Qwi;
-    C.Qwo = Qwo;
-    C.TmlDot = TmlDot;
-    C.TmsDot = TmsDot;
-    C.TaDot = TaDot;
-    C.TwDot = TwDot;
-    C.QaiMQao = Qai-Qao;
+    C.Qdli($+1) = Qdli;
+    C.Qdlo($+1) = Qdlo;
+    C.Qdsi($+1) = Qdsi;
+    C.Qdso($+1) = Qdso;
+    C.Qai($+1) = Qai;
+    C.Qao($+1) = Qao;
+    C.Qwi($+1) = Qwi;
+    C.Qwo($+1) = Qwo;
+    C.TmlDot($+1) = TmlDot;
+    C.TmsDot($+1) = TmsDot;
+    C.TaDot($+1) = TaDot;
+    C.TwDot($+1) = TwDot;
+    C.QaiMQao($+1) = Qai-Qao;
     
     // Integrate
     Tml = min(max(Tml + dt*TmlDot, OAT), Tbl);
@@ -322,6 +325,7 @@ C.N = size(C.time, 1);
 last = C.N;
 if plotting then
   plot_all()
+  zoom([0 10000])
 end
 
 mclose('all')
