@@ -61,13 +61,24 @@ function plot_heat(%zoom, %loc)
     subplot(221)
     overplot(['P.C.cmd', 'P.C.cfm'], ['k-', 'b-'], 'Flow', 'time, s', %zoom)
     subplot(222)
-    overplot(['P.C.Tp', 'P.C.Tml', 'P.C.Tms', 'P.C.Tdso', 'P.C.Ta', 'P.C.Tw', 'P.C.OAT'], ['k-', 'r--', 'm--', 'k-', 'c-', 'k-', 'm-'], 'Data cmd', 'time, s', %zoom)
-
+    overplot(['P.C.Tp', 'P.C.Tml', 'P.C.Tms', 'P.C.Tdso', 'P.C.Ta', 'P.C.Tw', 'P.C.OAT'], ['k-', 'g--', 'm--', 'k-', 'c-', 'k-', 'g-'], 'Data cmd', 'time, s', %zoom)
     subplot(223)
     overplot(['P.C.Qdli', 'P.C.Qdsi', 'P.C.Qwi', 'P.C.Qwo', 'P.C.QaiMQao'], ['k-', 'b-', 'r-', 'g--', 'k--'], 'Flux', 'time, s', %zoom)
-
     subplot(224)
     overplot(['P.C.Ta', 'P.C.Tw'], ['b-', 'k-'], 'Duct', 'time, s', %zoom)
+
+
+    figs($+1) = figure("Figure_name", 'Duct', "Position", [%loc, %size]);
+    subplot(221)
+    overplot(['P.C.cfm'], ['b-'], 'Flow', 'time, s', %zoom)
+    subplot(222)
+    overplot(['P.C.Tdso'], ['k-'], 'Tdso', 'time, s', %zoom)
+    subplot(223)
+    overplot(['P.C.Qdli', 'P.C.Qdlo'], ['k-', 'r-'], 'Flux', 'time, s', %zoom)
+    subplot(224)
+    overplot(['P.C.Qdsi', 'P.C.Qdso'], ['k-', 'r-'], 'Flux', 'time, s', %zoom)
+
+
 endfunction
 
 
@@ -102,6 +113,7 @@ function plot_all(%zoom, %loc)
     P.C.Tml = struct('time', C.time, 'values', C.Tml);
     P.C.Tbs = struct('time', C.time, 'values', C.Tbs);
     P.C.Tms = struct('time', C.time, 'values', C.Tms);
+    P.C.Tdsi = struct('time', C.time, 'values', C.Tdsi);
     P.C.Tdso = struct('time', C.time, 'values', C.Tdso);
     P.C.Ta = struct('time', C.time, 'values', C.Ta);
     P.C.Tw = struct('time', C.time, 'values', C.Tw);
@@ -179,7 +191,7 @@ R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
 dt = 20;   // sec time step
 Tp = 80;  // Duct supply, plenum temperature, F
 plotting = 1;
-debug = 2;
+debug = 3;
 run_name = 'heat_model';
 
 //pause
@@ -193,8 +205,8 @@ Ta = 65;    // Air temp, F
 cmdi = 10;
 cmdf = 100;
 
-Rsl = R22/((Adli+Adlo)/2) + 1/ho/Adlo;
-Rsli = R22/2/Adli;
+Rsl = 1/hi/Adli + R22/2/Adli + R22/2/Adlo + 1/ho/Adlo;
+Rsli = 1/hi/Adli + R22/2/Adli;
 Rslo = R22/2/Adlo + 1/ho/Adlo;
 Hdso = ho*Adso;
 
@@ -204,18 +216,18 @@ Rsao = R22/Aw + 1/ho/Aw;
 Hai = hi*Aw;
 Hao = ho*Aw;
 
-Rs = R8;
 C = "";
 for time = 0:dt:3600*16
+    
     if time<1000 then, cmd = cmdi; else cmd = cmdf;  end
     [cfm, mdotd, hduct] = flow_model(cmd, rhoa, mua);
     Tdli = Tp;
     Tbl = Tp;
     Hdli = hduct*Adli;
     Hdsi = hduct*Adsi;
-    Rss = 1/hduct/Adsi + Rs/((Adsi+Adso)/2) + 1/ho/Adso;
-    Rssi = 1/hduct/Adsi + Rs/2/Adsi;
-    Rsso = Rs/2/Adso + 1/ho/Adso;
+    Rss = 1/hduct/Adsi + R8/2/Adsi +R8/2/Adso + 1/ho/Adso;
+    Rssi = 1/hduct/Adsi + R8/2/Adsi;
+    Rsso = R8/2/Adso + 1/ho/Adso;
     Hdlo = ho*Adlo;
 
     // Init logic
@@ -293,6 +305,7 @@ for time = 0:dt:3600*16
     C.Tbs($+1) = Tbs;
     C.Tms($+1) = Tms;
     C.Tdso($+1) = Tdso;
+    C.Tdsi($+1) = Tdsi;
     C.Ta($+1) = Ta;
     C.Tw($+1) = Tw;
     C.OAT($+1) = OAT;
@@ -326,6 +339,7 @@ last = C.N;
 if plotting then
   plot_all()
   zoom([0 10000])
+  zoom([900 2800])
 end
 
 mclose('all')
