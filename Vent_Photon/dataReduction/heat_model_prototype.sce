@@ -155,10 +155,10 @@ Adso = 150/2; // Surface area inner duct, ft^ft  (half buried)
 Cpa = 0.23885; // Heat capacity of dry air at 80F, BTU/lbm/F (1.0035 J/g/K)
 Cpl = 0.2;  // Heat capacity of muffler box, BTU/lbm/F
 Cps = 0.4;  // Heat capacity of duct insulation, BTU/lbm/F
-Cpw = 0.2;  // Heat capacity yof ws, BTU/lbm/F
-Mw = 1000;  // Mass of room ws and ceiling, lbm
-Mdl = 50;   // Mass of muffler box, lbm
-Mds = 100;  // Mass of duct, lbm
+Cpw = 0.2;  // Heat capacity of walls, BTU/lbm/F
+Mw = 1000;  // Mass of room ws and ceiling, lbm (1000)
+Mdl = 50;   // Mass of muffler box, lbm (50)
+Mds = 20;  // Mass of duct, lbm (100)
 hf = 1;     // TBD.  Rdf = hf*log10(mdot);    // Boundary layer heat resistance forced convection, BTU/hr/ft^2/F
             // NOTE:  probably need step data from two different flow conditions to triangulate this value.
 hi = 1.4;   // Heat transfer resistance inside still air, BTU/hr/ft^2/F.  Approx industry avg
@@ -188,7 +188,7 @@ R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
 //  R ~ 2 - 100  BTU/hr/ft^2/F
 
 // Loop for time transient
-dt = 20;   // sec time step
+dt = 10;   // sec time step
 Tp = 80;  // Duct supply, plenum temperature, F
 plotting = 1;
 debug = 3;
@@ -198,11 +198,7 @@ run_name = 'heat_model';
 
 // Initialize
 OAT = 30;   // Outside air temperature, F
-Tbl = Tp;
-Tds = 75;   // Duct wall temp, F
-Tw = 50;    // House wall temp F
-Ta = 65;    // Air temp, F
-cmdi = 10;
+cmdi = 90;
 cmdf = 100;
 
 Rsl = 1/hi/Adli + R22/2/Adli + R22/2/Adlo + 1/ho/Adlo;
@@ -248,8 +244,8 @@ for time = 0:dt:3600*16
         Tbs = (2*mdotd*Cpa*Rss*Tdsi + OAT) / (2*mdotd*Cpa*Rss + 1);
         Qds = (Tbs - OAT) / Rss;
         Tms = Tbs - Qds * Rssi;
-        Tmsi = Tbs - Qds / Hdsi;
-        Tmso = OAT + Qds / Hdso;
+//        Tmsi = Tbs - Qds / Hdsi;
+//        Tmso = OAT + Qds / Hdso;
         Tdso = 2*Tbs - Tdsi;
         Qdsa = (Tdsi - Tdso)*mdotd*Cpa;  // BTU/hr
 
@@ -266,16 +262,16 @@ for time = 0:dt:3600*16
 
     // Flux
     Tbl = (2*mdotd*Cpa*Rsli*Tdli + Tml) / (2*mdotd*Cpa*Rsli + 1);
-    Tdlo = 2*Tbl - Tdli;
     Qdli = (Tbl - Tml) / Rsli;
     Qdlo = (Tml - OAT) / Rslo;
+    Tdlo = 2*Tbl - Tdli;
 
     Tdsi = Tdlo;
     Tbs = (2*mdotd*Cpa*Rssi*Tdsi + Tms) / (2*mdotd*Cpa*Rssi + 1);
-    Tdso = 2*Tbs - Tdsi;
     Qdsi = (Tbs - Tms) / Rssi;
     Qdso = (Tms - OAT) / Rsso;
-    
+    Tdso = 2*Tbs - Tdsi;
+
     Qai = Tdso * Cpa * mdotd;
     Qao = Ta * Cpa * mdotd;
 
@@ -340,6 +336,7 @@ if plotting then
   plot_all()
   zoom([0 10000])
   zoom([900 2800])
+  zoom([950 1300])
 end
 
 mclose('all')
