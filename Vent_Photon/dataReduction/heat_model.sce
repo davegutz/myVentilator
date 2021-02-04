@@ -237,17 +237,14 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M);
     Hai = hi*Aw;
     Hao = ho*Aw;
 
-
     // Inputs
     [cfm, mdot, hduct] = flow_model(cmd, rhoa, mua);
-    Tdso = Tp;
-
-    // Duct
+    Tdso = Tp - Duct_temp_drop;
 
     // Initialize
     a = []; b = []; c = []; e = [];
     if reset then,
-        Ta = (mdot*Cpa*Rsa*Tdso + OAT) / (mdot*Cpa*Rsa + 1);
+        Ta = (mdot*Cpa*Rsa*Tdso + OAT - Qlk*Rsa) / (mdot*Cpa*Rsa + 1);
         Qai = (Ta - OAT) / Rsa;
         Qao = Qai;
         Tw = Ta - Qai * Rsai;
@@ -263,7 +260,7 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M);
     Qwo = (Tw - OAT) / Rsao;
 
     // Derivatives
-    TaDot = (Qai - Qao - Qwi)/3600 / (Cpa * Mair);
+    TaDot = (Qai - Qao - Qwi - Qlk)/3600 / (Cpa * Mair);
     TwDot = (Qwi - Qwo)/3600 / (Cpw * Mw);
 
     // Integrate

@@ -26,3 +26,5 @@ R16 = 90;  // Resistance of R8 duct insulation, F-ft^2/(BTU/hr)
 R22 = 125;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
 R32 = 180;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
 R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+Duct_temp_drop = 7;  // Observed using infrared thermometer, F (7)
+Qlk = 800;    // Model alignment heat loss, BTU/hr

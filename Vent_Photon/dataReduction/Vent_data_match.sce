@@ -47,8 +47,6 @@ function serial_print_model_1()
     end
 end
 
-
-
 global figs D C P M
 try close(figs); end
 figs=[];
@@ -105,7 +103,7 @@ B = load_buffer(D, first, last);
 //B = load_buffer(D, first, last, %f);
 
 // Main loop
-time_past = -B.time(1);
+time_past = B.time(1);
 B.N = size(B.time, 1);
 reset = %t;
 M="";
