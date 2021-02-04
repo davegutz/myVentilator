@@ -38,7 +38,18 @@ exec('plotting.sce');
 exec('export_figs.sci');
 exec('heat_model.sce');
 
-global figs D C P
+function serial_print_model_1()
+    for k=0:size(M.set,1)-2
+        serial_print_inputs(k);
+        serial_print(k);
+        printf('\n');
+        mfprintf(doubtfd, '\n');
+    end
+end
+
+
+
+global figs D C P M
 try close(figs); end
 figs=[];
 try
@@ -97,41 +108,31 @@ B = load_buffer(D, first, last);
 time_past = -B.time(1);
 B.N = size(B.time, 1);
 reset = %t;
-//for i=1:B.N,
-for i=1:20,
+M="";
+for i=1:B.N,
     time = B.time(i);
-    T = time - time_past;
+    dt = time - time_past;
     time_past = time;
     // Inputs
     cmd = B.cmd(i);
     Tp = B.Tp_Sense(i);
     OAT = B.OAT(i);
-    if i==1 then
-        reset = %t;
-        Ta = 0; Tw = 0;
-        [a, b, c, e, Ta, Tw, M($+1)] = total_model(Tp, OAT, cmd, reset, Ta, Tw, T);
-        reset = %f;
-    end
-    [a, b, c, e, Ta, Tw, M($+1)] = total_model(Tp, OAT, cmd, reset, Ta, Tw, T);
-    C.Ta($+1) = Ta;
-    C.Tw($+1) = Tw;
-    C.Qao($+1) = M($).Qao;
+    if i==1 then, reset = %t; end
+    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M);
+    reset = %f;
 end
+
 // Detail serial print
-if debug>2 then serial_print_inputs_1(); end
-
-
-
+if debug>2 then serial_print_model_1(); end
 
 // Plots
 // Zoom last buffer
 if plotting then
-    zoom([-25000 0])
+    zoom_model([-25000 0])
     if debug>1 then
-        plot_all()
+        plot_all_model()
     end
 end
 
 mclose('all')
-
 export_figs(figs, run_name)
