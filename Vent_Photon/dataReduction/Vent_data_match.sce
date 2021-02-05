@@ -65,17 +65,17 @@ if err then
 end
 mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 
-// Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
-//run_name = 'vent_2021-01-31T19-25';
+// User inputs
 run_name = 'largeStepDecr_2021_02_04'
-data_file = run_name + '.csv';
-[data_t, data_d] = load_csv_data(data_file);
 debug=2; plotting = %t; first_init_override = 1;
 
+// Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
+//run_name = 'vent_2021-01-31T19-25';
+data_file = run_name + '.csv';
+[data_t, data_d] = load_csv_data(data_file);
 if size(data_d,1)==0 then
     error('debug.csv did not load.  Quitting\n')
 end
-
 [D, TD, first_init] = load_data(data_t, data_d);
 if exists('first_init_override') then
     first_init = first_init_override;
@@ -85,28 +85,18 @@ end
 first = first_init;
 last = D.N;
 B = load_buffer(D, first, last);
+B.N = size(B.time, 1);
 
-//////////////////////////////////////////////////////////////////////////////////////
-// Loop emulation
-
-// Local logic initialization
-//RESET = zeros(D.N, 1, 'boolean'); RESET([1]) = %t;
-//hr_lgv = 0;
-//C.hr_valid = D.spo2*0;
-
-// Bandpass filter 1.5 - 4.5 Hz (0.11s - 0.03s)
-//[C.ir_rate, C.ir_lstate, C.ir_rate_state] = my_exp_rate_lag(D.ir, 1/(LO_BAND*2*%pi), T, -RATE_LIM, RATE_LIM, RESET);
-//[ir_filt_raw, C.ir_lag_state] = my_tustin_lag(C.ir_rate, 1/(HI_BAND*2*%pi), T, -5e4, 5e4, RESET);
-
-// Read the first BUFFER_SIZE-SAMPLE_SIZE samples
-//last = min(first+BUFFER_SIZE-SAMPLE_SIZE-1, D.N);
-//B = load_buffer(D, first, last, %f);
+// Initialize model
+M="";
+exec('heat_model_constants.sce');
+M = heat_model_define();
+M = heat_model_init(M);
 
 // Main loop
 time_past = B.time(1);
-B.N = size(B.time, 1);
 reset = %t;
-M="";
+
 for i=1:B.N,
     time = B.time(i);
     dt = time - time_past;
@@ -116,7 +106,7 @@ for i=1:B.N,
     Tp = B.Tp_Sense(i);
     OAT = B.OAT(i);
     if i==1 then, reset = %t; end
-    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M);
+    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i);
     reset = %f;
 end
 

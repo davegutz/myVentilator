@@ -25,8 +25,13 @@ function [Qduct, mdot, hf] = flow_model(cmd, rho, mu);
     Ax = %pi*d^2/4;             // duct cross section, ft^2
     V = Qduct / Ax * 60;        // ft/hr
     Red = rho * V * d / mu;
-    log10hfi = 0.804*log10(Red) - 1.72; hfi = 1.1;
-    log10hfo = 0.804*log10(Red) - 1.12; hfo = 4.4;
+
+    hfi = 1.1;
+//    log10hfi = 0.804*log10(Red) - 1.72; 
+
+    hfo = 4.4;
+//    log10hfo = 0.804*log10(Red) - 1.12;
+
     log10hf = 0.804*log10(Red) - 1.72;   // Use smaller to start
     // For data fit, adjust the addend
     hf = max(10^(0.804*log10(Red) - 1.72), hfi);
@@ -227,60 +232,55 @@ endfunction
 
 
 // Calculate all aspects of heat model
-function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M);
+function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i);
 // Neglect duct heat effects
 // reset    Flag to indicate initialization
-    exec('heat_model_constants.sce');
-    Rsa = 1/hi/Aw + R22/Aw + 1/ho/Aw;
-    Rsai = 1/hi/Aw;
-    Rsao = R22/Aw + 1/ho/Aw;
-    Hai = hi*Aw;
-    Hao = ho*Aw;
 
     // Inputs
-    [cfm, mdot, hduct] = flow_model(cmd, rhoa, mua);
-    Tdso = Tp - Duct_temp_drop;
+    [cfm, mdot, hduct] = flow_model(cmd, M.rhoa, M.mua);
+    Tdso = Tp - M.Duct_temp_drop;
 
     // Initialize
     a = []; b = []; c = []; e = [];
-    if reset then,
-        Ta = (mdot*Cpa*Rsa*Tdso + OAT - Qlk*Rsa) / (mdot*Cpa*Rsa + 1);
-        Qai = (Ta - OAT) / Rsa;
+//    if reset then,
+    if 1 then,
+        Ta = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
+        Qai = (Ta - OAT) / M.Rsa;
         Qao = Qai;
-        Tw = Ta - Qai * Rsai;
+        Tw = max(Ta - Qai * M.Rsai, OAT);
     else
         Ta = M.Ta($);
         Tw = M.Tw($);
-        Qai = Tdso * Cpa * mdot;
-        Qao = Ta * Cpa * mdot;
+        Qai = Tdso * M.Cpa * mdot;
+        Qao = Ta * M.Cpa * mdot;
     end
-    Tmai = Ta - Qai / Hai;
-    Tmao = OAT + Qao / Hao;
-    Qwi = (Ta - Tw) / Rsai;
-    Qwo = (Tw - OAT) / Rsao;
+    Tmai = Ta - Qai / M.Hai;
+    Tmao = OAT + Qao / M.Hao;
+    Qwi = (Ta - Tw) / M.Rsai;
+    Qwo = (Tw - OAT) / M.Rsao;
 
     // Derivatives
-    TaDot = (Qai - Qao - Qwi - Qlk)/3600 / (Cpa * Mair);
-    TwDot = (Qwi - Qwo)/3600 / (Cpw * Mw);
+    TaDot = (Qai - Qao - Qwi - M.Qlk)/3600 / (M.Cpa * M.Mair);
+    TwDot = (Qwi - Qwo)/3600 / (M.Cpw * M.Mw);
 
     // Integrate
     Ta = min(max(Ta + dt*TaDot, Tw), Tdso);
     Tw = min(max(Tw + dt*TwDot, OAT), Ta);
     
     // Save / store
-    M.time($+1) = time;
-    M.cmd($+1) = cmd;
-    M.cfm($+1) = cfm;
-    M.OAT($+1) = OAT;
-    M.Qai($+1) = Qai;
-    M.Qao($+1) = Qao;
-    M.Qwi($+1) = Qwi;
-    M.Qwo($+1) = Qwo;
-    M.Ta($+1) = Ta;
-    M.TaDot($+1) = TaDot;
-    M.Tdso($+1) = Tdso;
-    M.Tp($+1) = Tp;
-    M.Tw($+1) = Tw;
-    M.TwDot($+1) = TwDot;
+    M.time(i) = time;
+    M.cmd(i) = cmd;
+    M.cfm(i) = cfm;
+    M.OAT(i) = OAT;
+    M.Qai(i) = Qai;
+    M.Qao(i) = Qao;
+    M.Qwi(i) = Qwi;
+    M.Qwo(i) = Qwo;
+    M.Ta(i) = Ta;
+    M.TaDot(i) = TaDot;
+    M.Tdso(i) = Tdso;
+    M.Tp(i) = Tp;
+    M.Tw(i) = Tw;
+    M.TwDot(i) = TwDot;
 
 end

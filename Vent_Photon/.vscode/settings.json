@@ -32,5 +32,5 @@
     },
     "particle.firmwareVersion": "3.0.0-beta.1",
     "particle.targetPlatform": "photon",
-    "particle.targetDevice": "PhotonVentilator"
+    "particle.targetDevice": "proto"
 }
