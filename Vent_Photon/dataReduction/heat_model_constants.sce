@@ -58,5 +58,4 @@ function M = heat_model_init(M)
     M.mdot = zeros(B.N, 1);
     M.Tass = zeros(B.N, 1);
     M.Twss = zeros(B.N, 1);
-    M.TaSdot = zeros(B.N, 1);
 endfunction
