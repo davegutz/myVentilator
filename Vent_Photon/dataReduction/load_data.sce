@@ -4,6 +4,7 @@ function [data_t, data_d] = load_csv_data(csv_file)
     // Read all the value in one pass
     // then using csvTextScan is much more efficient
     text = mgetl(csv_file);
+    text = unique(text, "r");  // delete repeated data
     clear n_commas
     for l = 1:size(text, 1)
         n_commas($+1) = size(strindex(text(l), ','), 2);

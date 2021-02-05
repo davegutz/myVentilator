@@ -89,6 +89,27 @@ function [filt, state] = my_tustin_lag_inline(in, tau, T, state, ...
     filt = state;
 endfunction
 
+
+// Inline Exponential rate-lag
+function [rate, lstate, rstate] = my_exp_rate_lag_inline(in, tau, T, ...
+                                     rstate, lstate, MIN, MAX, RESET)
+    eTt = exp(-T/tau);
+    a = (tau/T) - eTt/(1-eTt);
+    b = (1/(1-eTt)) - (tau/T);
+    c = (1-eTt)/T;
+    if RESET then
+        rstate = in;
+        lstate = in;
+        rate = 0;
+    else
+        rate = c*( a*rstate + b*in - lstate);
+        rate = min(max(rate, MIN), MAX);
+        rstate = in;
+        lstate = rate*T + lstate;
+    end
+endfunction
+
+
 function [res, hr_sd_ratio] = my_hr_and_o2_sat_filt(%time_us, ...
             %ir, %samp_size, %red, %ir_filt)
 // Calculate the heart rate and SpO2 level

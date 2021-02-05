@@ -40,6 +40,7 @@ endfunction
 
 function M = heat_model_init(M)
     M.time = zeros(B.N, 1);
+    M.dt = zeros(B.N, 1);
     M.cmd = zeros(B.N, 1);
     M.cfm = zeros(B.N, 1);
     M.OAT = zeros(B.N, 1);
@@ -58,4 +59,7 @@ function M = heat_model_init(M)
     M.mdot = zeros(B.N, 1);
     M.Tass = zeros(B.N, 1);
     M.Twss = zeros(B.N, 1);
+    M.mdrate = zeros(B.N, 1);
+    M.lstate = zeros(B.N, 1);
+    M.rstate = zeros(B.N, 1);
 endfunction

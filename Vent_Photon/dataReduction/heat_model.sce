@@ -248,6 +248,14 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
         mdot = M.mdot(i-1) + dt*d_mdot_dt;
     end
     
+    if reset then,
+        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 120, dt, ...
+                                     0, 0, -%inf, %inf, reset)
+    else
+        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 120, dt, ...
+                                     M.rstate(i-1), M.lstate(i-1), -0.5, 0.5, reset)
+    end
+    
     // Duct loss
     Tdso = Tp - M.Duct_temp_drop;
 
@@ -293,6 +301,7 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
     
     // Save / store
     M.time(i) = time;
+    M.dt(i) = dt;
     M.cmd(i) = cmd;
     M.cfm(i) = cfm;
     M.OAT(i) = OAT;

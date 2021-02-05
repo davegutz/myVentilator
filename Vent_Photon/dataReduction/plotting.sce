@@ -142,6 +142,8 @@ function plot_model(%zoom, %loc)
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
     overplot(['P.M.cmd', 'P.M.mdot'], ['k-', 'b-'], 'Flow', 'time, s', %zoom)
+    subplot(222)
+    overplot(['P.M.mdrate'], ['r-'], 'Flow', 'time, s', %zoom)
 
 
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
@@ -226,6 +228,7 @@ function plot_all_model(%zoom, %loc)
     P.M.Qmatch = struct('time', M.time, 'values', M.Qmatch);
     P.M.Qconv = struct('time', M.time, 'values', M.Qconv);
     P.M.mdot = struct('time', M.time, 'values', M.mdot);
+    P.M.mdrate = struct('time', M.time, 'values', M.mdrate);
 
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
 
