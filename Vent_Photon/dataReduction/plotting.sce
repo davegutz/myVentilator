@@ -130,15 +130,24 @@ function plot_model(%zoom, %loc)
     if ~exists('%loc') then
         %loc = default_loc + [50, 50];
     end
+
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
     overplot(['P.M.cmd', 'P.M.cfm'], ['k-', 'b-'], 'Flow', 'time, s', %zoom)
     subplot(222)
-    overplot(['P.M.Tp', 'P.M.Ta', 'P.M.Tw', 'P.M.OAT'], ['r-', 'g-', 'b-', 'k-'], 'Temps', 'time, s', %zoom)
+    overplot(['P.M.Tp', 'P.M.Ta', 'P.M.Tw', 'P.M.OAT'], ['r-', 'k-', 'g-', 'b-'], 'Temps', 'time, s', %zoom)
     subplot(223)
     overplot(['P.M.Qai', 'P.M.Qao', 'P.M.Qwi', 'P.M.Qwo'], ['r-', 'g-', 'r-', 'g-'], 'Flux', 'time, s', %zoom)
     subplot(224)
-    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw'], ['g-', 'c--', 'b-'], 'Duct', 'time, s', %zoom)
+    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw'], ['k-', 'c--', 'g-'], 'Duct', 'time, s', %zoom)
+
+    figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
+    subplot(221)
+    overplot(['P.M.TaDot', 'P.M.TwDot'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
+    subplot(222)
+    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss'], ['k-', 'c--', 'g-', 'r--', 'b--'], 'Duct', 'time, s', %zoom)
+    subplot(223)
+    overplot(['P.M.Qmatch', 'P.M.Qconv'], ['b-', 'g-'], 'Flow', 'time, s', %zoom)
 
 endfunction
 
@@ -206,6 +215,10 @@ function plot_all_model(%zoom, %loc)
     P.M.Tp = struct('time', M.time, 'values', M.Tp);
     P.M.Tw = struct('time', M.time, 'values', M.Tw);
     P.M.TwDot = struct('time', M.time, 'values', M.TwDot);
+    P.M.Tass = struct('time', M.time, 'values', M.Tass);
+    P.M.Twss = struct('time', M.time, 'values', M.Twss);
+    P.M.Qmatch = struct('time', M.time, 'values', M.Qmatch);
+    P.M.Qconv = struct('time', M.time, 'values', M.Qconv);
 
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
 

@@ -243,24 +243,29 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, Ta_S
     if reset then,
         mdot = mdot_raw;
     else
-        d_mdot_dt = (mdot_raw - M.mdot(i-1))/1500;
+        d_mdot_dt = (mdot_raw - M.mdot(i-1))/4500;
         mdot = M.mdot(i-1) + dt*d_mdot_dt;
     end
+    mdot = mdot_raw;
+    
     
     // Duct loss
     Tdso = Tp - M.Duct_temp_drop;
-
     // Initialize
     a = []; b = []; c = []; e = [];
     tran = 60;
-    Qconv = max(min( (tran - cmd)/tran, 1), 0) * M.Qconv;
-    Qmatch = (Ta_Sense*(mdot*M.Cpa*M.Rsa + 1) - (mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;
+    Qconv = max(min( (tran - cmd)/tran, 1), 0) * M.Qcon;
+    Qmatch = (Ta_Sense*(mdot*M.Cpa*M.Rsa + 1) - (mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
+    Qconv = Qmatch;
+    Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
+    Qaiss = (Tass - OAT) / M.Rsa;
+    Twss = max(Tass - Qaiss * M.Rsai, OAT);
     if reset then,
 //    if 1 then,
-        Ta = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
-        Qai = (Ta - OAT) / M.Rsa;
+        Ta = Tass;
+        Qai = (Tass - OAT) / M.Rsa;
         Qao = Qai;
-        Tw = max(Ta - Qai * M.Rsai, OAT);
+        Tw = Twss;
     else
         Ta = M.Ta(i-1);
         Tw = M.Tw(i-1);
@@ -281,8 +286,8 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, Ta_S
 //end
     
     // Integrate
-    Ta = min(max(Ta + dt*TaDot, Tw), Tdso);
-    Tw = min(max(Tw + dt*TwDot, OAT), Ta);
+    Ta = min(max(Ta + dt*TaDot, OAT), Tdso);
+    Tw = min(max(Tw + dt*TwDot, OAT), Tdso);
     
     // Save / store
     M.time(i) = time;
@@ -300,6 +305,9 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, Ta_S
     M.Tw(i) = Tw;
     M.TwDot(i) = TwDot;
     M.Qmatch(i) = Qmatch;
+    M.Qconv(i) = Qconv;
     M.mdot(i) = mdot;
+    M.Tass(i) = Tass;
+    M.Twss(i) = Twss;
 
 end

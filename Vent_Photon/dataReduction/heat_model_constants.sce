@@ -28,7 +28,8 @@ function M = heat_model_define()
     M.R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
     M.Duct_temp_drop = 7;  // Observed using infrared thermometer, F (7)
     M.Qlk = 800;    // Model alignment heat loss, BTU/hr
-    M.Qconv = (M.Qlk + 104) / 2;  // Model alignment heat gain when cmd = 0, BTU/hr.   ***Don't know why factor of 2 needed.
+//    M.Qcon = (M.Qlk + 104) / 2;  // Model alignment heat gain when cmd = 0, BTU/hr.   ***Don't know why factor of 2 needed.
+    M.Qcon = (M.Qlk + 104);  // Model alignment heat gain when cmd = 0, BTU/hr.   ***Don't know why factor of 2 was needed.
 
     M.Rsa = 1/M.hi/M.Aw + M.R22/M.Aw + 1/M.ho/M.Aw;
     M.Rsai = 1/M.hi/M.Aw;
@@ -53,5 +54,8 @@ function M = heat_model_init(M)
     M.Tw = zeros(B.N, 1);
     M.TwDot = zeros(B.N, 1);
     M.Qmatch = zeros(B.N, 1);
+    M.Qconv = zeros(B.N, 1);
     M.mdot = zeros(B.N, 1);
+    M.Tass = zeros(B.N, 1);
+    M.Twss = zeros(B.N, 1);
 endfunction
