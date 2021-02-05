@@ -232,25 +232,38 @@ endfunction
 
 
 // Calculate all aspects of heat model
-function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i);
+function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, Ta_Sense);
 // Neglect duct heat effects
 // reset    Flag to indicate initialization
 
     // Inputs
-    [cfm, mdot, hduct] = flow_model(cmd, M.rhoa, M.mua);
+    [cfm, mdot_raw, hduct] = flow_model(cmd, M.rhoa, M.mua);
+    
+    // Flow filter
+    if reset then,
+        mdot = mdot_raw;
+    else
+        d_mdot_dt = (mdot_raw - M.mdot(i-1))/1500;
+        mdot = M.mdot(i-1) + dt*d_mdot_dt;
+    end
+    
+    // Duct loss
     Tdso = Tp - M.Duct_temp_drop;
 
     // Initialize
     a = []; b = []; c = []; e = [];
-//    if reset then,
-    if 1 then,
-        Ta = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
+    tran = 60;
+    Qconv = max(min( (tran - cmd)/tran, 1), 0) * M.Qconv;
+    Qmatch = (Ta_Sense*(mdot*M.Cpa*M.Rsa + 1) - (mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;
+    if reset then,
+//    if 1 then,
+        Ta = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
         Qai = (Ta - OAT) / M.Rsa;
         Qao = Qai;
         Tw = max(Ta - Qai * M.Rsai, OAT);
     else
-        Ta = M.Ta($);
-        Tw = M.Tw($);
+        Ta = M.Ta(i-1);
+        Tw = M.Tw(i-1);
         Qai = Tdso * M.Cpa * mdot;
         Qao = Ta * M.Cpa * mdot;
     end
@@ -260,9 +273,13 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i);
     Qwo = (Tw - OAT) / M.Rsao;
 
     // Derivatives
-    TaDot = (Qai - Qao - Qwi - M.Qlk)/3600 / (M.Cpa * M.Mair);
+    TaDot = (Qai - Qao - Qwi - M.Qlk + Qconv)/3600 / (M.Cpa * M.Mair);
     TwDot = (Qwi - Qwo)/3600 / (M.Cpw * M.Mw);
-
+//    
+//            if time > -18500 then
+//pause
+//end
+    
     // Integrate
     Ta = min(max(Ta + dt*TaDot, Tw), Tdso);
     Tw = min(max(Tw + dt*TwDot, OAT), Ta);
@@ -282,5 +299,7 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i);
     M.Tp(i) = Tp;
     M.Tw(i) = Tw;
     M.TwDot(i) = TwDot;
+    M.Qmatch(i) = Qmatch;
+    M.mdot(i) = mdot;
 
 end
