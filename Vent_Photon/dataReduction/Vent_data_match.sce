@@ -86,6 +86,7 @@ first = first_init;
 last = D.N;
 B = load_buffer(D, first, last);
 B.N = size(B.time, 1);
+B.Tf = zeros(D.N, 1);
 
 // Initialize model
 M="";
@@ -106,7 +107,7 @@ for i=1:B.N,
     Tp = B.Tp_Sense(i);
     OAT = B.OAT(i);
     if i==1 then, reset = %t; end
-    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B.Ta_Sense(i));
+    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
     reset = %f;
 end
 

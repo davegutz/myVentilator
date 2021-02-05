@@ -143,7 +143,7 @@ function plot_model(%zoom, %loc)
 
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
-    overplot(['P.M.TaDot', 'P.M.TwDot'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
+    overplot(['P.M.TaDot', 'P.M.TwDot', 'P.M.TaSdot'], ['k-', 'g-', 'r-'], 'Flow', 'time, s', %zoom)
     subplot(222)
     overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss'], ['k-', 'c--', 'g-', 'r--', 'b--'], 'Duct', 'time, s', %zoom)
     subplot(223)
@@ -188,6 +188,7 @@ function plot_all_heat(%zoom, %loc)
     P.C.TaDot = struct('time', C.time, 'values', C.TaDot);
     P.C.TwDot = struct('time', C.time, 'values', C.TwDot);
     P.C.QaiMQao = struct('time', C.time, 'values', C.QaiMQao);
+    P.C.TaSdot = struct('time', C.time, 'values', C.TaSdot);
 
     plot_heat(%zoom, %loc + [30 30]);
 endfunction
@@ -220,6 +221,7 @@ function plot_all_model(%zoom, %loc)
     P.M.Qmatch = struct('time', M.time, 'values', M.Qmatch);
     P.M.Qconv = struct('time', M.time, 'values', M.Qconv);
 
+    P.M.TaSdot = struct('time', M.time, 'values', M.TaSdot);
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
 
     plot_model(%zoom, %loc + [30 30]);
