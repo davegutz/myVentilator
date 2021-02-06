@@ -244,29 +244,36 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
         mdot = mdot_raw;
     else
         delta = mdot_raw - M.mdot(i-1);
-        if delta > 0 then d_mdot_dt = (delta)/4500; else d_mdot_dt = delta/4500; end  //(4500 & 4500)
+        if delta > 0 then d_mdot_dt = (delta)/240; else d_mdot_dt = delta/90; end  //(4500 & 4500)
         mdot = M.mdot(i-1) + dt*d_mdot_dt;
     end
+//    mdot = mdot_raw;
+    
     
     if reset then,
-        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 120, dt, ...
+        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
                                      0, 0, -%inf, %inf, reset)
     else
-        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 120, dt, ...
+        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
                                      M.rstate(i-1), M.lstate(i-1), -0.5, 0.5, reset)
     end
+    mdot_nmp = mdot - M.mdrate(i)*10000;
+    mdot_nmp = mdot;
     
     // Duct loss
     Tdso = Tp - M.Duct_temp_drop;
 
     // Initialize
     a = []; b = []; c = []; e = [];
-//    tran = 60;
-//    Qconv = max(min( (tran - cmd)/tran, 1), 0) * M.Qcon;
-    tran = 600; // (360)
-    Qconv = max(min( (tran - mdot)/tran, 1), 0) * M.Qcon;
-    Qmatch = (B.Ta_Sense(i)*(mdot*M.Cpa*M.Rsa + 1) - (mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
-    Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
+//    tran = 900; // (600)
+//    Qconv = max(min( (tran - mdot_nmp)/tran, 1), 0) * M.Qcon;
+    t1 = 600; t2 = 800;
+    t1 = 400; t2 = 700;
+//    Qconv = (1-max(min((mdot_nmp-t1)/(t2-t1), 1), 0)) * M.Qcon;
+//    Qmatch = -(B.Ta_Sense(i)*(mdot_nmp*M.Cpa*M.Rsa + 1) - (mdot_nmp*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
+    Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon*0;
+    Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - (mdot_raw*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
+    Tass = max((mdot_nmp*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot_nmp*M.Cpa*M.Rsa + 1), OAT);
     Qaiss = (Tass - OAT) / M.Rsa;
     Twss = max(Tass - Qaiss * M.Rsai, OAT);
     if reset then,
@@ -278,8 +285,8 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
     else
         Ta = M.Ta(i-1);
         Tw = M.Tw(i-1);
-        Qai = Tdso * M.Cpa * mdot;
-        Qao = Ta * M.Cpa * mdot;
+        Qai = Tdso * M.Cpa * mdot_nmp;
+        Qao = Ta * M.Cpa * mdot_nmp;
     end
     Tmai = Ta - Qai / M.Hai;
     Tmao = OAT + Qao / M.Hao;
@@ -320,5 +327,6 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
     M.mdot(i) = mdot;
     M.Tass(i) = Tass;
     M.Twss(i) = Twss;
+    M.mdot_nmp(i) = mdot_nmp;
 
 end

@@ -1,5 +1,5 @@
 // heat_model_constants.sce
-function M = heat_model_define()
+function [M, C] = heat_model_define()
     M.Aw = 12*12 + 7*12*3;   // Surface area room walls and ceiling, ft^2
     M.Adli = 9;   // Surface area inner muffler box, ft^ft
     M.Adlo = 16;  // Surface area inner muffler box, ft^ft
@@ -36,9 +36,12 @@ function M = heat_model_define()
     M.Rsao = M.R22/M.Aw + 1/M.ho/M.Aw;
     M.Hai = M.hi*M.Aw;
     M.Hao = M.ho*M.Aw;
+    C.DB = 0.3;
+    C.G = 0.03;
+    C.tau = 600;
 endfunction
 
-function M = heat_model_init(M)
+function [M, C] = heat_model_init(M, C)
     M.time = zeros(B.N, 1);
     M.dt = zeros(B.N, 1);
     M.cmd = zeros(B.N, 1);
@@ -62,4 +65,8 @@ function M = heat_model_init(M)
     M.mdrate = zeros(B.N, 1);
     M.lstate = zeros(B.N, 1);
     M.rstate = zeros(B.N, 1);
+    M.mdot_nmp = zeros(B.N, 1);
+    C.duty = zeros(B.N, 1);
+    C.integ = zeros(B.N, 1);
+    C.prop = zeros(B.N, 1);
 endfunction

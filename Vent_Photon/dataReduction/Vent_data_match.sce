@@ -47,6 +47,16 @@ function serial_print_model_1()
     end
 end
 
+
+// Deadband
+function y = dead(x, hdb)
+    // x    input
+    // hdb  half of deadband
+    // y    output
+    y = max(x-hdb, 0) + min(x+hdb, 0);
+endfunction
+
+
 global figs D C P M
 try close(figs); end
 figs=[];
@@ -67,6 +77,7 @@ mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 
 // User inputs
 run_name = 'largeStepDecr_2021_02_04'
+run_name = 'vent_2021-02-05T17-00'
 debug=2; plotting = %t; first_init_override = 1;
 
 // Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
@@ -89,25 +100,47 @@ B.N = size(B.time, 1);
 B.Tf = zeros(D.N, 1);
 
 // Initialize model
-M="";
+M="";C="";
 exec('heat_model_constants.sce');
-M = heat_model_define();
-M = heat_model_init(M);
+[M, C] = heat_model_define();
+[M, C] = heat_model_init(M, C);
 
 // Main loop
 time_past = B.time(1);
 reset = %t;
 
 for i=1:B.N,
+    if i==1 then, reset = %t; end
     time = B.time(i);
     dt = time - time_past;
     time_past = time;
     // Inputs
-    cmd = B.cmd(i);
+    %cmd = B.cmd(i);
+    if reset then, 
+        duty = B.duty(1);
+    else
+        //duty = B.duty(i);
+        duty = C.duty(i-1);
+    end
     Tp = B.Tp_Sense(i);
     OAT = B.OAT(i);
-    if i==1 then, reset = %t; end
-    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
+    pcnt_pot = B.pcnt_pot(i);
+    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, duty, reset, M, i, B);
+    
+    // Control law
+    %set = B.set(i);
+    err = %set - M.Ta(i);
+    err_comp = dead(err, C.DB)*C.G;
+    C.prop(i) = max(min(err_comp * C.tau, 20), -20);
+    if reset then,
+        C.integ(i) = duty;
+    else
+        C.integ(i) = max(min(C.integ(i-1) + dt*err_comp, pcnt_pot - C.prop(i)), -C.prop(i));
+    end
+    cont = max(min(C.integ(i)+C.prop(i), pcnt_pot), 0);
+    %cmd = max(min(min(pcnt_pot, cont), 100), 0);
+    C.duty(i) = %cmd;
+
     reset = %f;
 end
 
@@ -117,10 +150,10 @@ if debug>2 then serial_print_model_1(); end
 // Plots
 // Zoom last buffer
 if plotting then
-    zoom_model([-25000 0])
     if debug>1 then
         plot_all_model()
     end
+//    zoom_model([-25000 0])
 end
 
 mclose('all')
