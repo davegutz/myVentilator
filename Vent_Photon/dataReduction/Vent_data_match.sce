@@ -140,7 +140,6 @@ for i=1:B.N,
     cont = max(min(C.integ(i)+C.prop(i), pcnt_pot), 0);
     %cmd = max(min(min(pcnt_pot, cont), 100), 0);
     C.duty(i) = %cmd;
-
     reset = %f;
 end
 
