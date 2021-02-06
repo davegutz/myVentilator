@@ -141,20 +141,33 @@ function plot_model(%zoom, %loc)
 
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
-    overplot(['P.M.cmd', 'P.M.mdot'], ['k-', 'b-'], 'Flow', 'time, s', %zoom)
+    overplot(['P.M.cmd', 'P.M.mdot', 'P.M.mdot_nmp', 'P.B.duty'], ['k-', 'b-', 'r-', 'g-'], 'Flow', 'time, s', %zoom)
     subplot(222)
     overplot(['P.M.mdrate'], ['r-'], 'Flow', 'time, s', %zoom)
 
 
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
-    overplot(['P.M.cmd', 'P.M.cfm'], ['k-', 'b-'], 'Flow', 'time, s', %zoom)
+    overplot(['P.M.cmd', 'P.M.cfm', 'P.B.duty', 'P.C.duty'], ['k-', 'b-', 'r-', 'g-'], 'Flow', 'time, s', %zoom)
     subplot(222)
     overplot(['P.M.Tp', 'P.M.Ta', 'P.M.Tw', 'P.M.OAT'], ['r-', 'k-', 'g-', 'b-'], 'Temps', 'time, s', %zoom)
     subplot(223)
     overplot(['P.M.Qai', 'P.M.Qao', 'P.M.Qwi', 'P.M.Qwo'], ['r-', 'g-', 'r-', 'g-'], 'Flux', 'time, s', %zoom)
     subplot(224)
     overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw'], ['k-', 'c--', 'g-'], 'Duct', 'time, s', %zoom)
+
+
+    figs($+1) = figure("Figure_name", 'Control', "Position", [%loc, %size]);
+    subplot(221)
+    overplot(['P.C.duty', 'P.B.duty', 'P.B.cmd'], ['g-', 'r-',  'b-'], 'Flow', 'time, s', %zoom)
+    subplot(222)
+    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.B.set'], ['r-', 'b-', 'g-'], 'Flow', 'time, s', %zoom)
+    subplot(223)
+    overplot(['P.B.prop', 'P.B.integ', 'P.B.duty'], ['r-', 'b-', 'g--'], 'Flow', 'time, s', %zoom)
+//    overplot(['P.B.prop', 'P.B.integ'], ['r-', 'b-', 'g-'], 'Flow', 'time, s', %zoom)
+    subplot(224)
+    overplot(['P.C.prop', 'P.C.integ', 'P.C.duty'], ['r-', 'b-', 'g--'], 'Flow', 'time, s', %zoom)
+
 
 endfunction
 
@@ -229,8 +242,18 @@ function plot_all_model(%zoom, %loc)
     P.M.Qconv = struct('time', M.time, 'values', M.Qconv);
     P.M.mdot = struct('time', M.time, 'values', M.mdot);
     P.M.mdrate = struct('time', M.time, 'values', M.mdrate);
+    P.M.mdot_nmp = struct('time', M.time, 'values', M.mdot_nmp);
 
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
+    P.B.duty = struct('time', B.time, 'values', B.duty);
+    P.B.set =  struct('time', B.time, 'values', B.set);
+    P.B.cmd =  struct('time', B.time, 'values', B.cmd);
+    P.B.integ =  struct('time', B.time, 'values', B.integ);
+    P.B.prop =  struct('time', B.time, 'values', B.prop);
+
+    P.C.integ =  struct('time', B.time, 'values', C.integ);
+    P.C.prop =  struct('time', B.time, 'values', C.prop);
+    P.C.duty = struct('time', B.time, 'values', C.duty);
 
     plot_model(%zoom, %loc + [30 30]);
 endfunction

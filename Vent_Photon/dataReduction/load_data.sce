@@ -4,7 +4,10 @@ function [data_t, data_d] = load_csv_data(csv_file)
     // Read all the value in one pass
     // then using csvTextScan is much more efficient
     text = mgetl(csv_file);
-    text = unique(text, "r");  // delete repeated data
+    textS = [text(:, 2:$) text(:, 1)];
+    textS = gsort(text, 'r', 'i');
+    text = unique(textS, "r");  // delete repeated data
+    text = [text(:,$) text(:, 1:$-1)];
     clear n_commas
     for l = 1:size(text, 1)
         n_commas($+1) = size(strindex(text(l), ','), 2);
@@ -13,6 +16,10 @@ function [data_t, data_d] = load_csv_data(csv_file)
     i_data = find(n_commas==nc_data);  // all rows with nc_data length
     data_t = csvTextScan(text(i_data), ',', '.', 'string');
     data_d = csvTextScan(text(i_data), ',', '.', 'double');
+    data_dS = [data_d(:, 2:$) data_d(:, 1)];  // move text date out of first column
+    data_dS = gsort(data_dS, 'lr', 'i');        // sort by time number
+    data_d = unique(data_dS, "r");   // delete repeated data (yes!  had to do it twice)
+    data_d = [data_d(:,$) data_d(:,1:$-1)];  // restore the order
 endfunction
 
 
