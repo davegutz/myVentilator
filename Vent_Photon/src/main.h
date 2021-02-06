@@ -218,7 +218,7 @@ const int EEPROM_ADDR = 1;  // Flash address
 #endif
 double tempf;               // webhook OAT, deg F
 double integ = 0;           // Control integrator output, %
-double G = 0.030;           // Control gain, r/s = %/F (0.030)
+double G = 0.150;           // Control gain, r/s = %/F (0.030)
 double tau = 600;           // Control lead, s  (600)
 double DB = 0.3;            // Half deadband width, deg F (0.5)
 double prop = 0;            // Control proportional output, %
@@ -523,7 +523,7 @@ void loop()
       err = set - Ta_Sense;
       double err_comp = DEAD(err, DB)*G;
       prop = max(min(err_comp * tau, 20), -20);   // TODO the prop limits do nothing
-      integ = max(min(integ + deltaT*err_comp, pcnt_pot-prop), -prop);
+      integ = max(min(integ + updateTime*err_comp, pcnt_pot-prop), -prop);
       cont = max(min(integ+prop, pcnt_pot), 0);
     }
     cmd = max(min(min(pcnt_pot, cont),100.0), 0);
