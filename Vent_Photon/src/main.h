@@ -220,7 +220,7 @@ double tempf;               // webhook OAT, deg F
 double integ = 0;           // Control integrator output, %
 double G = 0.150;           // Control gain, r/s = %/F (0.030)
 double tau = 600;           // Control lead, s  (600)
-double DB = 0.3;            // Half deadband width, deg F (0.5)
+double DB = 0.1;            // Half deadband width, deg F (0.5)
 double prop = 0;            // Control proportional output, %
 double cont = 0;            // Total control output, %
 double err = 0;             // Control error, F
