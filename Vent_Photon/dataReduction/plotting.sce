@@ -193,7 +193,7 @@ function plot_model(%zoom, %loc)
 
     figs($+1) = figure("Figure_name", 'Plant Poles', "Position", [%loc, %size]);
     subplot(111)
-    overplot(['P.M.slow_poles', 'P.M.fast_poles'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
+    overplot(['P.M.slow_poles', 'P.M.fast_poles', 'P.M.slow_room_poles'], ['k-', 'g-', 'r--'], 'Poles', 'time, s', %zoom)
 
 endfunction
 
@@ -270,6 +270,7 @@ function plot_all_model(%zoom, %loc)
     P.M.mdrate = struct('time', M.time, 'values', M.mdrate);
     P.M.slow_poles = struct('time', M.time, 'values', M.slow_poles);
     P.M.fast_poles = struct('time', M.time, 'values', M.fast_poles);
+    P.M.slow_room_poles = struct('time', M.time, 'values', M.slow_room_poles);
 
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
     P.B.duty = struct('time', B.time, 'values', B.duty);
