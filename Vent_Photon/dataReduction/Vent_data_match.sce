@@ -80,6 +80,8 @@ run_name = 'largeStepDecr_2021_02_04'
 run_name = 'vent_2021-02-05T17-00'
 run_name = 'vent_2021-02-06T14-00'
 debug=2; plotting = %t; first_init_override = 1;
+closed_loop = %f;
+
 
 // Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
 //run_name = 'vent_2021-01-31T19-25';
@@ -109,7 +111,6 @@ exec('heat_model_constants.sce');
 // Main loop
 time_past = B.time(1);
 reset = %t;
-closed = %f;
 
 for i=1:B.N,
     if i==1 then, reset = %t; end
@@ -121,7 +122,7 @@ for i=1:B.N,
     if reset then, 
         duty = B.duty(1);
     else
-        if closed then
+        if closed_loop then
             duty = C.duty(i-1);
         else
             duty = B.duty(i);
@@ -130,7 +131,21 @@ for i=1:B.N,
     Tp = B.Tp_Sense(i);
     OAT = B.OAT(i);
     pcnt_pot = B.pcnt_pot(i);
-    [a, b, c, e, M] = total_model(time, dt, Tp, OAT, duty, reset, M, i, B);
+    [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, duty, reset, M, i, B);
+    sl = syslin('c', a,b,c);
+    hl = ss2tf(sl);
+    hci_den = poly([-1/M.mdotl_incr], 's');  // mdotl_incr is worst case
+    hci_num = dMdot_dCmd/M.mdotl_incr;
+    hci = hci_num / hci_den;
+    sysol = hci * hl;
+    S = zpk(sysol);
+    our_poles = -gsort(1 ./ S.P{:});
+    M.slow_poles(i) = our_poles(2);
+    M.fast_poles(i) = our_poles(1);
+    sysc_num = poly([-1/C.tau], 's')*C.tau*C.G;
+    sysc_den = poly([0], 's');
+    sysc = sysc_num/sysc_den;
+    csysol = sysc * sysol;
     
     // Control law
     %set = B.set(i);

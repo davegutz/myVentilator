@@ -1,3 +1,25 @@
+// Copyright (C) 2021 - Dave Gutz
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// Feb 1, 2021    DA Gutz        Created
+// 
+
 // Heat model
 // Tdl temp of large duct mass Mdl, considered to be the muffler box, F
 // Tds temp of small duct mass Mds, considered to be the lenght of 6" duct, F
@@ -11,16 +33,18 @@ global figs D C P
 
 // Airflow model ECMF-150 6" duct at 50', bends, filters, muffler box
 // see ../datasheets/airflow model.xlsx
-function [Qduct, mdot, hf] = flow_model(cmd, rho, mu);
-    // cmd      Fan speed, %
+function [Qduct, mdot, hf, dMdot_dCmd] = flow_model(%cmd, rho, mu);
+    // %cmd      Fan speed, %
     // Pfan     Fan pressure, in H20 at 75F
     // mdotd    Duct = Fan airflow, lbm/hr at 75F
     // hf       Forced convection, BTU/hr/ft^2/F
     // rho      Density, lbm/ft^3
     // mu       Viscosity air, lbm/ft/hr
-    Qduct = -0.005153*cmd^2 + 2.621644*cmd;  // CFM
+    Qduct = -0.005153*%cmd^2 + 2.621644*%cmd;  // CFM
+    dQ_dCmd = 2*(-0.005153)*%cmd + 2.621644;
     mdot = Qduct * rho * 60;   // lbm/hr
-    Pfan = 5.592E-05*cmd^2 + 3.401E-03*cmd - 2.102E-02;  // in H2O
+    dMdot_dQ = rho * 60;
+    Pfan = 5.592E-05*%cmd^2 + 3.401E-03*%cmd - 2.102E-02;  // in H2O
     d = 0.5;   // duct diameter, ft
     Ax = %pi*d^2/4;             // duct cross section, ft^2
     V = Qduct / Ax * 60;        // ft/hr
@@ -35,6 +59,8 @@ function [Qduct, mdot, hf] = flow_model(cmd, rho, mu);
     log10hf = 0.804*log10(Red) - 1.72;   // Use smaller to start
     // For data fit, adjust the addend
     hf = max(10^(0.804*log10(Red) - 1.72), hfi);
+    
+    dMdot_dCmd = dQ_dCmd * dMdot_dQ;
 endfunction
 
 // Will be tuned to match data.   Using physics-based form
@@ -191,6 +217,7 @@ function C = heat_proto(debug)
             printf('%7.1f, %7.1f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f,\n',...
                 time, cmd, hduct, cfm, mdotd, Tp, Tbl, Tml, Tbs, Tms, Tdso, Ta, Tw, OAT);
         end
+
         C.time($+1) = time;
         C.cmd($+1) = cmd;
         C.hduct($+1) = hduct;
@@ -232,52 +259,37 @@ endfunction
 
 
 // Calculate all aspects of heat model
-function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
-// Neglect duct heat effects
-// reset    Flag to indicate initialization
+function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, M, i, B);
+    // Neglect duct heat effects
+    // reset    Flag to indicate initialization
 
     // Inputs
-    [cfm, mdot_raw, hduct] = flow_model(cmd, M.rhoa, M.mua);
+    [cfm, mdot_raw, hduct, dMdot_dCmd] = flow_model(%cmd, M.rhoa, M.mua);
     
     // Flow filter
     if reset then,
         mdot = mdot_raw;
     else
         delta = mdot_raw - M.mdot(i-1);
-        if delta > 0 then d_mdot_dt = (delta)/240; else d_mdot_dt = delta/90; end  //(240 & 00)
+        if delta > 0 then d_mdot_dt = (delta)/M.mdotl_incr; else d_mdot_dt = delta/M.mdotl_decr; end  //(240 & 90)
         mdot = M.mdot(i-1) + dt*d_mdot_dt;
     end
-////    mdot = mdot_raw;
-    
-    
-//    if reset then,
-//        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
-//                                     0, 0, -%inf, %inf, reset)
-//    else
-//        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
-//                                     M.rstate(i-1), M.lstate(i-1), -0.5, 0.5, reset)
-//    end
-//    mdot_nmp = mdot - M.mdrate(i)*10000;
-    mdot_nmp = mdot;
     
     // Duct loss
     Tdso = Tp - M.Duct_temp_drop;
+    dTdso_dTp = 1;
 
     // Initialize
-    a = []; b = []; c = []; e = [];
-//    tran = 900; // (600)
-//    Qconv = max(min( (tran - mdot_nmp)/tran, 1), 0) * M.Qcon;
+    // Qconv needed to match Ta_Sense to Ta
+    // For linear model assume all these biases and values are constant operating conditions dY_dX = 0
     t1 = 600; t2 = 800;
     t1 = 400; t2 = 700;
-//    Qconv = (1-max(min((mdot_nmp-t1)/(t2-t1), 1), 0)) * M.Qcon;
-//    Qmatch = -(B.Ta_Sense(i)*(mdot_nmp*M.Cpa*M.Rsa + 1) - (mdot_nmp*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
     Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon;
-    Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - (mdot_raw*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
-    Tass = max((mdot_nmp*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot_nmp*M.Cpa*M.Rsa + 1), OAT);
+    Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - (mdot_raw*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;      Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
     Qaiss = (Tass - OAT) / M.Rsa;
     Twss = max(Tass - Qaiss * M.Rsai, OAT);
+
     if reset then,
-//    if 1 then,
         Ta = Tass;
         Qai = (Tass - OAT) / M.Rsa;
         Qao = Qai;
@@ -285,31 +297,80 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
     else
         Ta = M.Ta(i-1);
         Tw = M.Tw(i-1);
-        Qai = Tdso * M.Cpa * mdot_nmp;
-        Qao = Ta * M.Cpa * mdot_nmp;
+        Qai = Tdso * M.Cpa * mdot;
+        Qao = Ta * M.Cpa * mdot;
     end
-    Tmai = Ta - Qai / M.Hai;
-    Tmao = OAT + Qao / M.Hao;
+    //    Tmai = Ta - Qai / M.Hai;
+    //    Tmao = OAT + Qao / M.Hao;
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
 
     // Derivatives
-    TaDot = (Qai - Qao - Qwi - M.Qlk + Qconv)/3600 / (M.Cpa * M.Mair);
-    TwDot = (Qwi - Qwo)/3600 / (M.Cpw * M.Mw);
+    dn_TaDot = 3600 * M.Cpa * M.Mair;
+    dn_TwDot = 3600 * M.Cpw * M.Mw;
+    TaDot = (Qai - Qao - Qwi - M.Qlk + Qconv) / dn_TaDot;
+    TwDot = (Qwi - Qwo) / dn_TwDot;
 
-//    
-//            if time > -18500 then
-//pause
-//end
-    
     // Integrate
     Ta = min(max(Ta + dt*TaDot, OAT), Tdso);
     Tw = min(max(Tw + dt*TwDot, OAT), Tdso);
     
+    // Consolidate the linear model
+    // states:  {Ta  Tw}
+    // inputs:  {mdot Tdso OAT}
+    // outputs: {Ta}
+
+    dQai_dMdot = M.Cpa * Tdso;
+    dQai_dTdso = M.Cpa * mdot;
+    dQao_dMdot = M.Cpa * Ta;
+    dQao_dTa = M.Cpa * mdot;
+    dQwi_dTa = 1/M.Rsai;
+    dQwi_dTw = -1/M.Rsao;
+    dQwo_dTw = 1/M.Rsai;
+    dQwo_dOAT = -1/M.Rsao;
+
+    dTaDot_dQai = 1/dn_TaDot;
+    dTaDot_dQao = -1/dn_TaDot;
+    dTaDot_dQwi = -1/dn_TaDot;
+    dTwDot_dQwi = 1/dn_TwDot;
+    dTwDot_dQwo = -1/dn_TwDot;
+    
+    dTaDot_dTa = dTaDot_dQao * dQao_dTa  +  dTaDot_dQwi * dQwi_dTa;
+    dTaDot_dTw = dTaDot_dQwi * dQwi_dTw;
+    
+    dTwDot_dTw = dTwDot_dQwi * dQwi_dTw  +  dTwDot_dQwo * dQwo_dTw;
+    dTwDot_dTa = dTwDot_dQwi * dQwi_dTa;
+
+    dTaDot_dMdot = dTaDot_dQai * dQai_dMdot  +  dTaDot_dQao * dQao_dMdot;
+    dTaDot_dTdso = dTaDot_dQai * dQai_dTdso;
+    dTaDot_dOAT = 0;
+
+    dTwDot_dMdot = 0;
+    dTwDot_dTdso = 0;
+    dTwDot_dOAT = dTwDot_dQwo * dQwo_dOAT;
+    
+    dTa_dTa = 1;
+    dTa_dTw = 0;
+    
+    dTa_dMdot = 0;
+    dTa_dTdso = 0;
+    dTa_dOAT = 0;
+
+    // states:  {Ta  Tw}
+    // inputs:  {mdot Tdso OAT}
+    // outputs: {Ta}
+    a = [  dTaDot_dTa      dTaDot_dTw;
+           dTwDot_dTa      dTwDot_dTw  ];
+//    b = [  dTaDot_dMdot    dTaDot_dTdso    dTaDot_dOAT;
+//           dTwDot_dMdot    dTwDot_dTdso    dTwDot_dOAT ];
+    b = [  dTaDot_dMdot; dTwDot_dMdot];
+    c = [  dTa_dTa         dTa_dTw     ];
+//    e = [  dTa_dMdot       dTa_dTdso       dTa_dOAT];
+
     // Save / store
     M.time(i) = time;
     M.dt(i) = dt;
-    M.cmd(i) = cmd;
+    M.%cmd(i) = %cmd;
     M.cfm(i) = cfm;
     M.OAT(i) = OAT;
     M.Qai(i) = Qai;
@@ -327,6 +388,5 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
     M.mdot(i) = mdot;
     M.Tass(i) = Tass;
     M.Twss(i) = Twss;
-    M.mdot_nmp(i) = mdot_nmp;
 
 end

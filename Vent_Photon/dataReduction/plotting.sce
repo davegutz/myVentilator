@@ -1,5 +1,27 @@
+// Copyright (C) 2021 - Dave Gutz
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// Feb 1, 2021    DA Gutz        Created
+// 
 // Plotting
 default_loc = [40 30];
+
 
 function plot_data(%zoom, %loc)
     global figs D C P
@@ -17,6 +39,7 @@ function plot_data(%zoom, %loc)
     overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.pcnt_pot', 'P.D.cmd', 'P.D.duty'], ['r--', 'g--', 'b-', 'b--', 'c-', 'm--'], 'Data cmd', 'time, s', %zoom)
 endfunction
 
+
 function plot_compare(%zoom, %loc)
     global figs
     %size = [610, 460];
@@ -31,6 +54,7 @@ function plot_compare(%zoom, %loc)
     overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.cmd_scaled'], ['r-', 'g-', 'm-', 'k-'], 'Data temperatures', 'time, s', %zoom)
 
 endfunction
+
 
 function plot_all(%zoom, %loc)
     global figs D C P
@@ -76,6 +100,7 @@ function plot_all(%zoom, %loc)
     plot_compare(%zoom, %loc + [60 60]);
 endfunction
 
+
 function zoom(%zoom, %loc)
     global figs
     if ~exists('%zoom') then
@@ -87,6 +112,7 @@ function zoom(%zoom, %loc)
     end
     plot_all(%zoom, %loc);
 endfunction
+
 
 function plot_heat(%zoom, %loc)
     global figs C
@@ -106,7 +132,6 @@ function plot_heat(%zoom, %loc)
     overplot(['P.C.Qdli', 'P.C.Qdsi', 'P.C.Qwi', 'P.C.Qwo', 'P.C.QaiMQao'], ['k-', 'b-', 'r-', 'g--', 'k--'], 'Flux', 'time, s', %zoom)
     subplot(224)
     overplot(['P.C.Ta', 'P.C.Tw'], ['b-', 'k-'], 'Duct', 'time, s', %zoom)
-
 
     figs($+1) = figure("Figure_name", 'Duct', "Position", [%loc, %size]);
     subplot(221)
@@ -141,10 +166,9 @@ function plot_model(%zoom, %loc)
 
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
-    overplot(['P.M.cmd', 'P.M.mdot', 'P.M.mdot_nmp', 'P.B.duty'], ['k-', 'b-', 'r-', 'g-'], 'Flow', 'time, s', %zoom)
+    overplot(['P.M.cmd', 'P.M.mdot', 'P.B.duty'], ['k-', 'b-', 'g-'], 'Flow', 'time, s', %zoom)
     subplot(222)
     overplot(['P.M.mdrate'], ['r-'], 'Flow', 'time, s', %zoom)
-
 
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
@@ -155,7 +179,6 @@ function plot_model(%zoom, %loc)
     overplot(['P.M.Qai', 'P.M.Qao', 'P.M.Qwi', 'P.M.Qwo'], ['r-', 'g-', 'r-', 'g-'], 'Flux', 'time, s', %zoom)
     subplot(224)
     overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw'], ['k-', 'c--', 'g-'], 'Duct', 'time, s', %zoom)
-
 
     figs($+1) = figure("Figure_name", 'Control', "Position", [%loc, %size]);
     subplot(221)
@@ -168,6 +191,9 @@ function plot_model(%zoom, %loc)
     subplot(224)
     overplot(['P.C.prop', 'P.C.integ', 'P.C.duty'], ['r-', 'b-', 'g--'], 'Flow', 'time, s', %zoom)
 
+    figs($+1) = figure("Figure_name", 'Plant Poles', "Position", [%loc, %size]);
+    subplot(111)
+    overplot(['P.M.slow_poles', 'P.M.fast_poles'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
 
 endfunction
 
@@ -242,7 +268,8 @@ function plot_all_model(%zoom, %loc)
     P.M.Qconv = struct('time', M.time, 'values', M.Qconv);
     P.M.mdot = struct('time', M.time, 'values', M.mdot);
     P.M.mdrate = struct('time', M.time, 'values', M.mdrate);
-    P.M.mdot_nmp = struct('time', M.time, 'values', M.mdot_nmp);
+    P.M.slow_poles = struct('time', M.time, 'values', M.slow_poles);
+    P.M.fast_poles = struct('time', M.time, 'values', M.fast_poles);
 
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
     P.B.duty = struct('time', B.time, 'values', B.duty);
