@@ -134,7 +134,7 @@ function plot_model(%zoom, %loc)
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
     overplot(['P.M.TaDot', 'P.M.TwDot'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
-    subplot(222)
+    subplot(224)
     overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss'], ['k-', 'c--', 'g-', 'r--', 'b--'], 'Duct', 'time, s', %zoom)
     subplot(223)
     overplot(['P.M.Qmatch', 'P.M.Qconv'], ['b-', 'g-'], 'Flow', 'time, s', %zoom)

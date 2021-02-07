@@ -244,20 +244,20 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
         mdot = mdot_raw;
     else
         delta = mdot_raw - M.mdot(i-1);
-        if delta > 0 then d_mdot_dt = (delta)/240; else d_mdot_dt = delta/90; end  //(4500 & 4500)
+        if delta > 0 then d_mdot_dt = (delta)/240; else d_mdot_dt = delta/90; end  //(240 & 00)
         mdot = M.mdot(i-1) + dt*d_mdot_dt;
     end
-//    mdot = mdot_raw;
+////    mdot = mdot_raw;
     
     
-    if reset then,
-        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
-                                     0, 0, -%inf, %inf, reset)
-    else
-        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
-                                     M.rstate(i-1), M.lstate(i-1), -0.5, 0.5, reset)
-    end
-    mdot_nmp = mdot - M.mdrate(i)*10000;
+//    if reset then,
+//        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
+//                                     0, 0, -%inf, %inf, reset)
+//    else
+//        [M.mdrate(i), M.lstate(i), M.rstate(i)] = my_exp_rate_lag_inline(mdot, 1000, dt, ...
+//                                     M.rstate(i-1), M.lstate(i-1), -0.5, 0.5, reset)
+//    end
+//    mdot_nmp = mdot - M.mdrate(i)*10000;
     mdot_nmp = mdot;
     
     // Duct loss
@@ -271,7 +271,7 @@ function [a, b, c, e, M] = total_model(time, dt, Tp, OAT, cmd, reset, M, i, B);
     t1 = 400; t2 = 700;
 //    Qconv = (1-max(min((mdot_nmp-t1)/(t2-t1), 1), 0)) * M.Qcon;
 //    Qmatch = -(B.Ta_Sense(i)*(mdot_nmp*M.Cpa*M.Rsa + 1) - (mdot_nmp*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
-    Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon*0;
+    Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon;
     Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - (mdot_raw*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;  // Qconv needed to match Ta_Sense to Ta
     Tass = max((mdot_nmp*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot_nmp*M.Cpa*M.Rsa + 1), OAT);
     Qaiss = (Tass - OAT) / M.Rsa;

@@ -1,4 +1,5 @@
 // Overplot functions
+default_loc = [40 30];
 function [%gca] = overplot(st, c, %title, %xlabel, %zoom, %ylim)
     xtitle(%title);
     if ~exists('%zoom') then

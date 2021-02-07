@@ -78,6 +78,7 @@ mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 // User inputs
 run_name = 'largeStepDecr_2021_02_04'
 run_name = 'vent_2021-02-05T17-00'
+run_name = 'vent_2021-02-06T14-00'
 debug=2; plotting = %t; first_init_override = 1;
 
 // Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
@@ -108,6 +109,7 @@ exec('heat_model_constants.sce');
 // Main loop
 time_past = B.time(1);
 reset = %t;
+closed = %f;
 
 for i=1:B.N,
     if i==1 then, reset = %t; end
@@ -119,8 +121,11 @@ for i=1:B.N,
     if reset then, 
         duty = B.duty(1);
     else
-        //duty = B.duty(i);
-        duty = C.duty(i-1);
+        if closed then
+            duty = C.duty(i-1);
+        else
+            duty = B.duty(i);
+        end
     end
     Tp = B.Tp_Sense(i);
     OAT = B.OAT(i);
