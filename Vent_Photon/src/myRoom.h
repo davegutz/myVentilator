@@ -56,7 +56,7 @@ public:
     DuctTherm(const String name, const double ap_0, const double ap_1, const double ap_2,
         const double aq_0, const double aq_1, const double aq_2, const double duct_dia, const double duct_temp_drop,
         const double mdot_lag_decr, const double mdot_lag_incr, const double rhoa, const double mua);
-    void update(const bool reset, const double T, const double Tp,  const uint32_t duty);
+    void update(const int reset, const double T, const double Tp,  const uint32_t duty);
     double cfm(void){return cfm_;};
     double mdot(void){return mdot_;};
     double mdot_lag(void){return mdot_lag_;};
@@ -86,7 +86,7 @@ public:
     RoomTherm(const String name, const double cpa, const double dn_tadot, const double dn_twdot, const double qcon,
         const double qlk, const double rsa, const double rsai, const double rsao, const double trans_conv_low,
         const double trans_conv_high);
-    void update(const bool reset, const double T, const double Tdso, const double mdot, const double OAT, const double otherHeat);
+    void update(const int reset, const double T, const double Tdso, const double mdot, const double OAT, const double otherHeat);
     double Ta(void){return Ta_;};
     double Tw(void){return Tw_;};
 };

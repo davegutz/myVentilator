@@ -63,7 +63,7 @@ double DuctTherm::flow_model_(const double fan_speed, const double rhoa, const d
 }
 
 // Heat balance and temperature
-void DuctTherm::update(const bool reset, const double T, const double Tp,  const uint32_t duty)
+void DuctTherm::update(const int reset, const double T, const double Tp,  const uint32_t duty)
 {
     // Inputs
     // Fan speed is linear with duty, per TerraBloom customer support.   Duty is 0-255.
@@ -71,12 +71,16 @@ void DuctTherm::update(const bool reset, const double T, const double Tp,  const
     mdot_ = flow_model_(double(duty)/2.55, rhoa_, mua_);
 
     // Lag
-    if ( reset ) mdot_lag_ = mdot_;
+    if ( reset>0 ) mdot_lag_ = mdot_;
     else
     {
         double delta = mdot_ - mdot_lag_;
         if ( delta>0 ) mdot_lag_ += T * delta / mdot_lag_incr_;
         else mdot_lag_ += T * delta / mdot_lag_decr_;
+    }
+    if ( debug > 3 )
+    {
+        Serial.printf("%s: reset=%d, duty=%ld, cfm=%7.3f, mdot=%7.3f, mdot_lag=%7.3f, Tdso=%7.3f,   \n", name_.c_str(), reset, duty, cfm_, mdot_, mdot_lag_, Tdso_);
     }
 }
 
@@ -97,7 +101,7 @@ RoomTherm::RoomTherm(const String name, const double cpa, const double dn_tadot,
 {}
 
 // Two-state thermal model
-void RoomTherm::update(const bool reset, const double T, const double Tdso, const double mdot, const double OAT, const double otherHeat)
+void RoomTherm::update(const int reset, const double T, const double Tdso, const double mdot, const double OAT, const double otherHeat)
 {
     double qai;        // Heat into room air from duct flow, BTU/hr
     double qao;        // Heat out of room via the air displaced by duct flow, BTU/hr
@@ -108,9 +112,9 @@ void RoomTherm::update(const bool reset, const double T, const double Tdso, cons
     qconv_ = (1. - max(min( (mdot - trans_conv_low_) / (trans_conv_high_ - trans_conv_low_), 1.), 0.)) * qcon_;
 
     // Flux
-    if ( reset )
+    if ( reset>0 )
     {
-        Ta_ = max((mdot*cpa_*rsa_* Tdso + OAT - qlk_*rsa_ + qconv_*rsa_) / (mdot*cpa_*rsa_ + 1.), OAT);
+        Ta_ = max((mdot*cpa_*rsa_*Tdso + OAT - qlk_*rsa_ + qconv_*rsa_) / (mdot*cpa_*rsa_ + 1.), OAT);
         qai = (Ta_ - OAT) / rsa_;
         qao = qai;
         Tw_ = max(Ta_ - qai/rsai_, OAT);
@@ -129,7 +133,7 @@ void RoomTherm::update(const bool reset, const double T, const double Tdso, cons
     
     if ( debug > 3 )
     {
-        Serial.printf("%s: mdot=%7.3f, Tdso=%7.3f, OAT=%7.3f,  ----->  Ta=%7.3f, Tw=%7.3f, \n", name_.c_str(), mdot, Tdso, OAT, Ta_, Tw_);
+        Serial.printf("%s: reset=%d, mdot=%7.3f, Tdso=%7.3f, OAT=%7.3f,  ----->  Ta=%7.3f, Tw=%7.3f, \n", name_.c_str(), reset, mdot, Tdso, OAT, Ta_, Tw_);
     }
     
     // Integration (Euler Backward Difference)

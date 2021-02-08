@@ -587,8 +587,8 @@ void loop()
     serial_print(cmd);
   }
 
-  // Initialize complete
-  reset = 0;
+  // Initialize complete once sensors and models started
+  if ( read ) reset = 0;
 
 } // loop
 
@@ -660,12 +660,12 @@ boolean load(int reset, double T, unsigned int time_ms)
   }
   else
   {
-    call = duty>10;
-    room->update(reset, T, Ta_Sense, double(call), 0.0, OAT);
-    Ta_Sense    = room->Ta();
     int raw_pot_control = analogRead(pot_control);
-    pcnt_pot = 100.;
     Tp_Sense = double(raw_pot_control)/4096. * 10 + 70;;
+    pcnt_pot = 100.;
+    duct->update(reset, T, Tp_Sense,  duty);
+    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, 0.0);
+    Ta_Sense    = room->Ta();
   }
 
   // Built-in-test logic.   Run until finger detected
