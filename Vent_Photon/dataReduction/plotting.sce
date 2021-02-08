@@ -193,7 +193,7 @@ function plot_model(%zoom, %loc)
 
     figs($+1) = figure("Figure_name", 'Plant Poles', "Position", [%loc, %size]);
     subplot(111)
-    overplot(['P.M.slow_poles', 'P.M.fast_poles', 'P.M.slow_room_poles'], ['k-', 'g-', 'r--'], 'Poles', 'time, s', %zoom)
+    overplot(['P.M.duct_pole', 'P.M.fast_room_pole', 'P.M.slow_room_pole'], ['k-', 'g-', 'r--'], 'Poles', 'time, s', %zoom)
 
 endfunction
 
@@ -268,9 +268,9 @@ function plot_all_model(%zoom, %loc)
     P.M.Qconv = struct('time', M.time, 'values', M.Qconv);
     P.M.mdot = struct('time', M.time, 'values', M.mdot);
     P.M.mdrate = struct('time', M.time, 'values', M.mdrate);
-    P.M.slow_poles = struct('time', M.time, 'values', M.slow_poles);
-    P.M.fast_poles = struct('time', M.time, 'values', M.fast_poles);
-    P.M.slow_room_poles = struct('time', M.time, 'values', M.slow_room_poles);
+    P.M.duct_pole = struct('time', M.time, 'values', M.duct_pole);
+    P.M.fast_room_pole = struct('time', M.time, 'values', M.fast_room_pole);
+    P.M.slow_room_pole = struct('time', M.time, 'values', M.slow_room_pole);
 
     P.B.Ta_Sense = struct('time', B.time, 'values', B.Ta_Sense);
     P.B.duty = struct('time', B.time, 'values', B.duty);

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 - Dave Gutz
+e// Copyright (C) 2021 - Dave Gutz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -132,23 +132,31 @@ for i=1:B.N,
     OAT = B.OAT(i);
     pcnt_pot = B.pcnt_pot(i);
     [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, duty, reset, M, i, B);
-    sl = syslin('c', a,b,c);
-    hl = ss2tf(sl);
-    hci_den = poly([-1/M.mdotl_incr], 's');  // mdotl_incr is worst case
-    hci_num = dMdot_dCmd/M.mdotl_incr;
-    hci = hci_num / hci_den;
-    sysol = hci * hl;
-    S = zpk(sysol);
-    Sl = zpk(hl);
-    our_poles = -gsort(1 ./ S.P{:});
-    plant_poles = -gsort(1 ./ Sl.P{:});
-    M.slow_poles(i) = our_poles(2);
-    M.fast_poles(i) = our_poles(1);
-    M.slow_room_poles(i) = plant_poles(1);
+
+    // Linear  model stuff
+    sroom = syslin('c', a,b,c);
+    hroom = ss2tf(sroom);
+    hduct_den = poly([-1/M.mdotl_incr], 's');  // mdotl_incr is worst case
+    hduct_num = dMdot_dCmd/M.mdotl_incr;
+    hduct = hduct_num / hduct_den;
+    sysplant = hduct * hroom;
+    Sduct = zpk(hduct);
+    duct_poles = -gsort(1 ./Sduct.P{:});
+    Sroom = zpk(hroom);
+    room_poles = -gsort(1 ./ Sroom.P{:});
+    Splant = zpk(sysplant);
+    our_poles = -gsort(1 ./ Splant.P{:});
+    M.duct_pole(i) = duct_poles(1);
+    M.fast_room_pole(i) = room_poles(1);
+    if size(room_poles, 1)<2 then
+        M.slow_room_pole(i) = %nan;
+    else
+        M.slow_room_pole(i) = room_poles(2);
+    end
     sysc_num = poly([-1/C.tau], 's')*C.tau*C.G;
     sysc_den = poly([0], 's');
     sysc = sysc_num/sysc_den;
-    csysol = sysc * sysol;
+    sysol = sysc * sysplant;
     
     // Control law
     %set = B.set(i);

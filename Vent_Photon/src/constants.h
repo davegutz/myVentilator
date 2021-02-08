@@ -82,4 +82,27 @@ const boolean bare = false;  // Force continuous calibration mode to run with ba
 
 const uint32_t pwm_frequency = 5000;    // Photon pwm driver frequency, Hz. (ECMF needs 1-10kHz)
 
+// Model
+#define M_CPA           0.23885     // Heat capacity of dry air at 80F, BTU/lbm/F (1.0035 J/g/K)  (0.23885)
+#define M_CPW           0.2         // Heat capacity of walls, BTU/lbm/F  (0.2)
+#define M_AW            396.        // Surface area room walls and ceiling, ft^2  (396)
+#define M_MW            1000.       // Mass of room ws and ceiling, lbm (1000)
+#define M_HI            1.4         // Heat transfer resistance inside still air, BTU/hr/ft^2/F.  Approx industry avg (1.4)
+#define M_HO            4.4         // Heat transfer resistance outside still air, BTU/hr/ft^2/F.  Approx industry avg (4.4)
+#define M_RHOA          0.0739      // Density of dry air at 80F, lbm/ft^3  (0.0739)
+#define M_R22           125.        // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)  (125)
+#define M_DUCT_TEMP_DROP    7.      // Observed using infrared thermometer, F (7)
+#define M_QLK           800.        // Model alignment heat loss, BTU/hr (800)
+#define M_MDOTL_INCR    360.        // Duct long term heat soak, s (360)   CoolTerm Capture 2021-01-21 14-12-19.xlsx
+#define M_MDOTL_DECR    90.         // Duct long term heat soak, s (90)    data match activities
+#define M_VOL_AIR       1152.       // Volume of air in 8x12x12 room, ft^3 (1152)
+#define M_MAIR          (M_VOL_AIR * M_RHOA)        // Mass of air in room, lbm
+const double M_RSA = 1./M_HI/M_AW + M_R22/M_AW + 1./M_HO/M_AW;  // Effective resistance of air,  F-ft^2/(BTU/hr)
+const double M_RSAI = 1./M_HI/M_AW;                 // Resistance air to wall,  F-ft^2/(BTU/hr)
+const double M_RSAO = M_R22/M_AW + 1./M_HO/M_AW;    // Resistance wall to OAT, F-ft^2/(BTU/hr)
+const double M_DN_TADOT = 3600. * M_CPA * M_MAIR;    // Heat capacitance of air, (F/sec) / (BTU/hr) 
+const double M_DN_TWDOT = 3600. * M_CPW * M_MW;     // Heat capacitance of air, (F/sec) / (BTU/hr) 
+
+
+
 #endif // CONSTANTS_H_
