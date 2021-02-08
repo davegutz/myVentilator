@@ -16,8 +16,6 @@
 #include "application.h" // Should not be needed if file .ino or Arduino
 #endif
 
-extern int verbose;
-
 
 // class Debounce
 // constructors

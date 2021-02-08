@@ -159,6 +159,7 @@ using namespace std;
 #include "constants.h"
 #include "myAuth.h"
 #include "myFilters.h"
+#include "myRoom.h"
 /* This file myAuth.h is not in Git repository because it contains personal information.
 Make it yourself.   It should look like this, with your personal authorizations:
 (Note:  you don't need a valid number for one of the blynkAuth if not using it.)
@@ -228,6 +229,10 @@ bool lastHold = false;      // Web toggled permanent and acknowledged
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
 double lastChangedWebDmd = webDmd;
 double cmd = 0;                  // PWM duty cycle output
+
+RoomTherm* room;            // Room model
+RoomTherm* roomEmbMod;      // Room embedded model
+
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -299,6 +304,10 @@ void setup()
   #ifndef NO_WEATHER_HOOK
     Particle.subscribe("hook-response/get_weather", gotWeatherData, MY_DEVICES);
   #endif
+
+  // Models
+  room       = new RoomTherm("room",    1.61/86400, 114./86400, 1.75/86400, 283./86400, 29, 69, 180, 120, 0.01);
+  roomEmbMod = new RoomTherm("embRoom", 1.61/86400, 114./86400, 1.75/86400, 283./86400, 29, 69, 180, 120);
 
   // Begin
   Particle.connect();
@@ -526,12 +535,17 @@ void loop()
       integ = max(min(integ + updateTime*err_comp, pcnt_pot-prop), -prop);
       cont = max(min(integ+prop, pcnt_pot), 0);
     }
+
     cmd = max(min(min(pcnt_pot, cont),100.0), 0);
-    duty = min(uint32_t(cmd*255.0/100.0), uint32_t(255));
-    if ( Tp_Sense<74.0 ) duty = 0;
+
+    // Latch on fan enable.   If temperature high, turn on.  If low, turn off.   If in-between and already on, leave on.
+    // Latch prevents cycling of fan as Tp cools on startup of fan.
+    if ( Tp_Sense>74.0 || ((Tp_Sense>73.0) & (duty>0)) ) duty = min(uint32_t(cmd*255.0/100.0), uint32_t(255));
+    else duty = 0;
     if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>23 ) duty = 0;
     if ( dwellTp ) duty = 0;
     pwm_write(duty);
+
     toggle = !toggle;
     digitalWrite(status_led, HIGH);
   }
@@ -548,9 +562,9 @@ void loop()
     else
     {
       delay(41); // Usual I2C time
-      if ( reset>0 ) Ta_Sense = NOMSET;
-      if ( reset>0 ) Tp_Sense = NOMSET;
     }
+
+
   }
 
   // Publish to Particle cloud if desired (different than Blynk)
@@ -642,8 +656,12 @@ boolean load(int reset, double T, unsigned int time_ms)
   }
   else
   {
+    call = duty>10;
+    room->update(reset, T, Ta_Sense, double(call), 0.0, OAT);
+    Ta_Sense    = room->Ta_Sense();
     int raw_pot_control = analogRead(pot_control);
-    pcnt_pot = double(raw_pot_control)/40.96;
+    pcnt_pot = 100.;
+    Tp_Sense = double(raw_pot_control)/4096. * 10 + 70;;
   }
 
   // Built-in-test logic.   Run until finger detected
@@ -708,7 +726,7 @@ void publish3(void)
     Blynk.virtualWrite(V13, Ta_Sense);
     Blynk.virtualWrite(V14, I2C_Status);
     Blynk.virtualWrite(V15, hmString);
-    Blynk.virtualWrite(V16, callCount*1+set-HYST);
+    Blynk.virtualWrite(V16, duty);
   #endif
 }
 

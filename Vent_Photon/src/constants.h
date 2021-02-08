@@ -46,7 +46,7 @@
 //#define  FAKETIME                         // For simulating rapid time passing of schedule
 
 // Constants always defined
-const int8_t debug = 5;         // Level of debug printing (3)
+extern const int8_t debug = 5;         // Level of debug printing (3)
 #define TA_SENSOR 0x27          // Ambient room Honeywell temp sensor bus address (0x27)
 #define TP_TEMPCAL 1            // Maxim 1-wire plenum temp sense calibrate (0), F
 #define TA_TEMPCAL -5           // Honeywell calibrate temp sense (0), F
