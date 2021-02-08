@@ -33,12 +33,11 @@
 #endif
 
 // Disable flags if needed for debugging, usually commented
-//#define BARE_PHOTON           // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 //#define NO_WEATHER_HOOK       // Turn off webhook weather lookup.  Will get default OAT = 30F
 //#define WEATHER_BUG           // Turn on bad weather return for debugging
 //#define NO_BLYNK              // Turn off Blynk functions.  Interact using Particle cloud
 //#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
-//#define BARE                  // Run without peripherals, except maybe a POT
+//#define BARE                  // ****** see local_config.h  ****Don't change it here
 #include "local_config.h"       // this is not in GitHub repository.  Normally empty file
 
 
@@ -92,16 +91,27 @@ const uint32_t pwm_frequency = 5000;    // Photon pwm driver frequency, Hz. (ECM
 #define M_RHOA          0.0739      // Density of dry air at 80F, lbm/ft^3  (0.0739)
 #define M_R22           125.        // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)  (125)
 #define M_DUCT_TEMP_DROP    7.      // Observed using infrared thermometer, F (7)
+#define M_DUCT_DIA      0.5         // Duct diameter, ft (0.5)
 #define M_QLK           800.        // Model alignment heat loss, BTU/hr (800)
 #define M_MDOTL_INCR    360.        // Duct long term heat soak, s (360)   CoolTerm Capture 2021-01-21 14-12-19.xlsx
 #define M_MDOTL_DECR    90.         // Duct long term heat soak, s (90)    data match activities
+#define M_MUA           0.04379     // Viscosity air, lbm/ft/hr (0.04379)
 #define M_VOL_AIR       1152.       // Volume of air in 8x12x12 room, ft^3 (1152)
 #define M_MAIR          (M_VOL_AIR * M_RHOA)        // Mass of air in room, lbm
 const double M_RSA = 1./M_HI/M_AW + M_R22/M_AW + 1./M_HO/M_AW;  // Effective resistance of air,  F-ft^2/(BTU/hr)
 const double M_RSAI = 1./M_HI/M_AW;                 // Resistance air to wall,  F-ft^2/(BTU/hr)
 const double M_RSAO = M_R22/M_AW + 1./M_HO/M_AW;    // Resistance wall to OAT, F-ft^2/(BTU/hr)
-const double M_DN_TADOT = 3600. * M_CPA * M_MAIR;    // Heat capacitance of air, (F/sec) / (BTU/hr) 
-const double M_DN_TWDOT = 3600. * M_CPW * M_MW;     // Heat capacitance of air, (F/sec) / (BTU/hr) 
+const double M_DN_TADOT = 3600. * M_CPA * M_MAIR;   // Heat capacitance of air, (BTU/hr)  / (F/sec)
+const double M_DN_TWDOT = 3600. * M_CPW * M_MW;     // Heat capacitance of air, (BTU/hr)  / (F/sec)
+const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain when cmd = 0, BTU/hr. 
+#define M_AP_0          -2.102E-02  // cmd^0 coefficient pressure polynomial cmd-->in H20
+#define M_AP_1          3.401E-03   // cmd^1 coefficient pressure polynomial cmd-->in H20
+#define M_AP_2          5.592E-05   // cmd^2 coefficient pressure polynomial cmd-->in H20
+#define M_AQ_0          0           // cmd^0 coefficient flow polynomial cmd-->cfm
+#define M_AQ_1          2.621644    // cmd^1 coefficient flow polynomial cmd-->cfm
+#define M_AQ_2          -0.005153   // cmd^2 coefficient flow polynomial cmd-->cfm
+#define M_TRANS_CONV_LOW    400     // mdot threshold to begin transitioning from full qconv to 0
+#define M_TRANS_CONV_HIGH   700     // mdot threshold to end transition to 0 qconv
 
 
 

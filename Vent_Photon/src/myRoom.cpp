@@ -29,48 +29,110 @@
 
 extern int debug;
 
+
+
+
+
+// DuctTherm Class Functions
+
+// Constructors
+DuctTherm::DuctTherm()
+    : name_(""), ap_0_(0), ap_1_(0), ap_2_(0), aq_0_(0), aq_1_(0), aq_2_(0),
+    duct_dia_(0), duct_temp_drop_(0), mdot_lag_decr_(0),
+    mdot_lag_incr_(0), mua_(0), rhoa_(0)
+{}
+
+DuctTherm::DuctTherm(const String name, const double ap_0, const double ap_1, const double ap_2,
+    const double aq_0, const double aq_1, const double aq_2, const double duct_dia, const double duct_temp_drop,
+    const double mdot_lag_decr, const double mdot_lag_incr, const double mua, const double rhoa)
+    : name_(name), ap_0_(ap_0), ap_1_(ap_1), ap_2_(ap_2), aq_0_(aq_0), aq_1_(aq_1), aq_2_(aq_2),
+    duct_dia_(duct_dia), duct_temp_drop_(duct_temp_drop), mdot_lag_decr_(mdot_lag_decr),
+    mdot_lag_incr_(mdot_lag_incr), mua_(mua), rhoa_(rhoa)
+{}
+ 
+// Calculate
+// Duct flow and temperature
+double DuctTherm::flow_model_(const double fan_speed, const double rhoa, const double mua)
+{
+    cfm_ = aq_2_ * fan_speed*fan_speed + aq_1_ * fan_speed + aq_0_;  // CFM
+    mdot_ = cfm_ * rhoa_ * 60;   // lbm/hr
+    press_ = ap_2_ * fan_speed*fan_speed + ap_1_ * fan_speed + ap_0_; // in H2O
+    vel_ = cfm_ / (3.1415926 * duct_dia_*duct_dia_ / 4) * 60;        // ft/hr
+    Re_d_ = rhoa_ * vel_ * duct_dia_ / mua_;
+    return ( mdot_ );
+}
+
+// Heat balance and temperature
+void DuctTherm::update(const bool reset, const double T, const double Tp,  const uint32_t duty)
+{
+    // Inputs
+    // Fan speed is linear with duty, per TerraBloom customer support.   Duty is 0-255.
+    Tdso_ = Tp - duct_temp_drop_;
+    mdot_ = flow_model_(double(duty)/2.55, rhoa_, mua_);
+
+    // Lag
+    if ( reset ) mdot_lag_ = mdot_;
+    else
+    {
+        double delta = mdot_ - mdot_lag_;
+        if ( delta>0 ) mdot_lag_ += T * delta / mdot_lag_incr_;
+        else mdot_lag_ += T * delta / mdot_lag_decr_;
+    }
+}
+
+
 // RoomTherm Class Functions
+
 // Constructors
 RoomTherm::RoomTherm()
-  :   name_(""), Ha_(0), Hc_(0), Hf_(0), Ho_(0), Rn_(0), Rx_(0), Tn_(0), Tx_(0)
+  :   name_(""), cpa_(0), dn_tadot_(0), dn_twdot_(0), rsa_(0), rsai_(0),
+  rsao_(0), trans_conv_high_(0), trans_conv_low_(0)
 {}
-RoomTherm::RoomTherm(const String name, const double Ha, const double Hc, const double Hf, const double Ho, \
-  const double Rn, const double Rx, const double Tn, const double Tx)
-  :   name_(name), Ha_(Ha), Hc_(Hc), Hf_(Hf), Ho_(Ho), Rn_(Rn), Rx_(Rx), Tn_(Tn), Tx_(Tx), sNoise_(0)
+
+RoomTherm::RoomTherm(const String name, const double cpa, const double dn_tadot, const double dn_twdot, const double qcon,
+        const double qlk, const double rsa, const double rsai, const double rsao, const double trans_conv_low,
+        const double trans_conv_high)
+    : name_(name), cpa_(cpa), dn_tadot_(dn_tadot), dn_twdot_(dn_twdot), rsa_(rsa), rsai_(rsai), rsao_(rsao), trans_conv_high_(trans_conv_high),
+    trans_conv_low_(trans_conv_low)
 {}
-RoomTherm::RoomTherm(const String name, const double Ha, const double Hc, const double Hf, const double Ho, \
-    const double Rn, const double Rx, const double Tn, const double Tx, const double sNoise)
-    :   name_(name), Ha_(Ha), Hc_(Hc), Hf_(Hf), Ho_(Ho), Rn_(Rn), Rx_(Rx), Tn_(Tn), Tx_(Tx), sNoise_(sNoise)
-  {}
-// Calculate
-double RoomTherm::update(const bool reset, const double T, const double temp, const double duty, \
-  const double otherHeat, const double OAT)
+
+// Two-state thermal model
+void RoomTherm::update(const bool reset, const double T, const double Tdso, const double mdot, const double OAT, const double otherHeat)
 {
-  // Three-state thermal model
-  // The boiler in the house this was tuned to has a water reset schedule
-  // that is a function of OAT.   If yours in constant, just
-  // Tx to same value as Tn
-  double Tb   = max(min((OAT-Rn_)/(Rx_-Rn_)*(Tx_-Tn_)+Tn_, Tn_), Tx_); // Curve interpolation
-  // States
-  if ( reset )
-  {
-    Ta_   = temp;                           // Air temp in house, F
-    Tw_   = (OAT*Ho_+Ta_*Ha_)/(Ho_+Ha_);    // Outside wall temp, F
-    Tc_   = (Ta_*(Ha_+Hc_)-Tw_*Ha_)/Hc_;    // Core heater temp, F
-  }
-  // Derivatives
-  double dTw_dt   = -(Tw_-Ta_)*Ha_ - (Tw_-OAT)*Ho_;
-  double dTa_dt   = -(Ta_-Tw_)*Ha_ - (Ta_-Tc_)*Hc_;
-  double dTc_dt   = -(Tc_-Ta_)*Hc_ + duty*(Tb-Tc_)*Hf_ + otherHeat;
-  if ( debug > 3 )
-  {
-    Serial.printf("%s:  dTw_dt=%7.3f, dTa_dt=%7.3f, dTc_dt=%7.3f\n", name_.c_str(), dTw_dt, dTa_dt, dTc_dt);
-    Serial.printf("%s:  Tb=%7.3f, Tc=%7.3f, Ta=%7.3f, Tw=%7.3f, OAT=%7.3f\n", name_.c_str(), Tb, Tc_, Ta_, Tw_, OAT);
-  }
-  // Integration (Euler Backward Difference)
-  Tw_  = min(max(Tw_+dTw_dt*T,  -40), 120);
-  Ta_  = min(max(Ta_+dTa_dt*T,  -40), 120);
-  Tc_  = min(max(Tc_+dTc_dt*T,  -40), 120);
-  Ta_Sense_ = Ta_ + sNoise_ * float(random(-10, 10))/10.0;
-  return dTa_dt;
+    double qai;        // Heat into room air from duct flow, BTU/hr
+    double qao;        // Heat out of room via the air displaced by duct flow, BTU/hr
+    double qwi;        // Heat into wall from air, BTU/hr
+    double qwo;        // Heat out of wall to OAT, BTU/hr
+
+    // Input
+    qconv_ = (1. - max(min( (mdot - trans_conv_low_) / (trans_conv_high_ - trans_conv_low_), 1.), 0.)) * qcon_;
+
+    // Flux
+    if ( reset )
+    {
+        Ta_ = max((mdot*cpa_*rsa_* Tdso + OAT - qlk_*rsa_ + qconv_*rsa_) / (mdot*cpa_*rsa_ + 1.), OAT);
+        qai = (Ta_ - OAT) / rsa_;
+        qao = qai;
+        Tw_ = max(Ta_ - qai/rsai_, OAT);
+    }
+    else
+    {
+        qai = Tdso * cpa_ * mdot;
+        qao = Ta_ * cpa_ * mdot;
+    }
+    qwi = (Ta_ - Tw_) / rsai_;
+    qwo = (Tw_ - OAT) / rsao_;
+    
+    // Derivatives
+    double Ta_dot = (qai - qao - qwi - qlk_ + qconv_) / dn_tadot_;
+    double Tw_dot = (qwi - qwo) / dn_twdot_;
+    
+    if ( debug > 3 )
+    {
+        Serial.printf("%s: mdot=%7.3f, Tdso=%7.3f, OAT=%7.3f,  ----->  Ta=%7.3f, Tw=%7.3f, \n", name_.c_str(), mdot, Tdso, OAT, Ta_, Tw_);
+    }
+    
+    // Integration (Euler Backward Difference)
+    Ta_  = min(max(Ta_ + T*Ta_dot,  -40), 120);
+    Tw_  = min(max(Tw_ + T*Tw_dot,  -40), 120);
 }

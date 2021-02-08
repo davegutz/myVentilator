@@ -36,7 +36,6 @@ function [M, C] = heat_model_define()
     M.Cps = 0.4;  // Heat capacity of duct insulation, BTU/lbm/F
     M.Mdl = 50;   // Mass of muffler box, lbm (50)
     M.Mds = 20;  // Mass of duct, lbm (100)
-    M.mua = 0.04379;  // Viscosity air, lbm/ft/hr
     M.hf = 1;     // TBD.  Rdf = hf*log10(mdot);    // Boundary layer heat resistance forced convection, BTU/hr/ft^2/F
                 // NOTE:  probably need step data from two different flow conditions to triangulate this value.
 
@@ -48,6 +47,7 @@ function [M, C] = heat_model_define()
     M.hi = 1.4;   // Heat transfer resistance inside still air, BTU/hr/ft^2/F.  Approx industry avg
     M.ho = 4.4;   // Heat transfer resistance outside still air, BTU/hr/ft^2/F.  Approx industry avg
     M.rhoa = .0739;    // Density of dry air at 80F, lbm/ft^3
+    M.mua = 0.04379;  // Viscosity air, lbm/ft/hr
     M.Mair = 8*12*12 * M.rhoa; // Mass of air in room, lbm
     M.R22 = 125;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
     M.Duct_temp_drop = 7;  // Observed using infrared thermometer, F (7)

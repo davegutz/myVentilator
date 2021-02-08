@@ -230,6 +230,8 @@ unsigned long lastSync = millis();// Sync time occassionally.   Recommended by P
 double lastChangedWebDmd = webDmd;
 double cmd = 0;                  // PWM duty cycle output
 
+DuctTherm* duct;            // Duct model
+DuctTherm* ductEmbMod;      // Duct embedded model
 RoomTherm* room;            // Room model
 RoomTherm* roomEmbMod;      // Room embedded model
 
@@ -306,8 +308,10 @@ void setup()
   #endif
 
   // Models
-  room       = new RoomTherm("room",    1.61/86400, 114./86400, 1.75/86400, 283./86400, 29, 69, 180, 120, 0.01);
-  roomEmbMod = new RoomTherm("embRoom", 1.61/86400, 114./86400, 1.75/86400, 283./86400, 29, 69, 180, 120);
+  duct = new DuctTherm("duct", M_AP_0, M_AP_1, M_AP_2, M_AQ_0, M_AQ_1, M_AQ_2, M_DUCT_DIA,
+    M_DUCT_TEMP_DROP, M_MDOTL_DECR, M_MDOTL_INCR, M_RHOA, M_MUA);
+  room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
+    M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
 
   // Begin
   Particle.connect();
@@ -658,7 +662,7 @@ boolean load(int reset, double T, unsigned int time_ms)
   {
     call = duty>10;
     room->update(reset, T, Ta_Sense, double(call), 0.0, OAT);
-    Ta_Sense    = room->Ta_Sense();
+    Ta_Sense    = room->Ta();
     int raw_pot_control = analogRead(pot_control);
     pcnt_pot = 100.;
     Tp_Sense = double(raw_pot_control)/4096. * 10 + 70;;
