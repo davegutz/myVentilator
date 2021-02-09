@@ -176,7 +176,7 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #endif
 #include <OneWire.h>
 #include <DS18.h>
-														   
+
 // Global locals
 char buffer[256];           // Serial print buffer
 int hum = 68;               // Relative humidity integer value, %
@@ -337,7 +337,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,set,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -394,8 +394,7 @@ void loop()
   if ( readTp   ) lastReadTp   = now;
   dwellTp = ( (dwellTp && ((now-lastDwellTp)<DWELL_TP_DELAY)) || readTp);
   if ( !dwellTp   ) lastDwellTp   = now;
-  now = millis();
-  double Tr = (now - lastRead)/1e3;
+  double deltaR = double(now - lastRead)/1000.;
   read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishP;
   if ( read     ) lastRead      = now;
 
@@ -483,11 +482,11 @@ void loop()
     held        = webHold;
     saveTemperature(int(set), int(webDmd), held, EEPROM_ADDR);
   }
-  if ( debug>6 )
+  if ( debug>3 )
   {
-    if ( controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO\n");
-    else if ( controlMode==WEB ) Serial.printf("*******************Setpoint WEB\n");
-    else if ( controlMode==POT ) Serial.printf("*******************Setpoint POT\n");
+    if ( controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO, set=%7.1f\n", set);
+    else if ( controlMode==WEB ) Serial.printf("*******************Setpoint WEB, set=%7.1f\n", set);
+    else if ( controlMode==POT ) Serial.printf("*******************Setpoint POT, set=%7.1f\n", set);
     else Serial.printf("*******************unknown controlMode %d\n", controlMode);
   }
 
@@ -538,8 +537,8 @@ void loop()
   // Read sensors
   if ( read )
   {
-    if ( debug > 3 ) Serial.printf("Read update=%7.3f\n", Tr);
-    testing = load(reset, Tr);
+    if ( debug>2 ) Serial.printf("Read update=%7.3f\n", deltaR);
+    testing = load(reset, deltaR);
     if ( !bare )
     {
       testing = testing;
@@ -548,8 +547,6 @@ void loop()
     {
       delay(41); // Usual I2C time
     }
-
-
   }
 
   // Publish to Particle cloud if desired (different than Blynk)
@@ -581,6 +578,7 @@ void serial_print_inputs(unsigned long now, double T)
   Serial.print(controlTime, 3); Serial.print(", ");
   Serial.print(T, 6); Serial.print(", ");  
   Serial.print(I2C_Status, DEC); Serial.print(", ");
+  Serial.print(set, 1); Serial.print(", ");
   Serial.print(Tp_Sense, 1); Serial.print(", ");
   Serial.print(Ta_Sense, 1); Serial.print(", ");
   Serial.print(hum, 1); Serial.print(", ");
@@ -766,6 +764,7 @@ void publish_particle(unsigned long now, bool publishP, double cmd)
 int setSaveDisplayTemp(double t)
 {
     set = t;
+    // Serial.printf("setSave:   set=%7.1f\n", set);
     switch(controlMode)
     {
         case POT:   

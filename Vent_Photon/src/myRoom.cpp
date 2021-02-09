@@ -27,11 +27,7 @@
 
 #include "myRoom.h"
 
-extern int debug;
-
-
-
-
+extern int8_t debug;
 
 // DuctTherm Class Functions
 
