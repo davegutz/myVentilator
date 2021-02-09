@@ -305,7 +305,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     //    Tmao = OAT + Qao / M.Hao;
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
-
+    
     // Derivatives
     dn_TaDot = 3600 * M.Cpa * M.Mair;
     dn_TwDot = 3600 * M.Cpw * M.Mw;

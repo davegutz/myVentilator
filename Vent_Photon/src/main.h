@@ -249,7 +249,7 @@ byte pot_control = A3;      // Control Pot
 void serial_print_inputs(unsigned long now, double T);
 void serial_print(double cmd);
 uint32_t pwm_write(uint32_t duty);
-boolean load(int reset, double T, unsigned int time_ms);
+boolean load(int reset, double T);
 DS18 sensor_plenum(pin_1_wire);
 void publish1(void); void publish2(void); void publish3(void); void publish4(void);
 void publish_particle(unsigned long now, bool publishP, double cmd);
@@ -309,7 +309,7 @@ void setup()
 
   // Models
   duct = new DuctTherm("duct", M_AP_0, M_AP_1, M_AP_2, M_AQ_0, M_AQ_1, M_AQ_2, M_DUCT_DIA,
-    M_DUCT_TEMP_DROP, M_MDOTL_DECR, M_MDOTL_INCR, M_RHOA, M_MUA);
+    M_DUCT_TEMP_DROP, M_MDOTL_DECR, M_MDOTL_INCR, M_MUA, M_RHOA);
   room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
 
@@ -356,13 +356,11 @@ void loop()
   // static boolean was_testing = true;        // Memory of testing, used to perform a logic reset on transition
   double T = 0;                             // Present update time, s
   boolean testing = true;                   // Initial startup is calibration mode to 60 bpm, 99% spo2, 2% PI
-  const int bare_wait = int(1000.0);        // To simulate peripherals sample time
+  const int bare_wait = int(1);        // To simulate peripherals sample time
   bool readTp;             // Special sequence to read Tp affected by PWM noise with duty>0, T/F
   static bool dwellTp;     // Special hold to read Tp T/F
   bool control;            // Control sequence, T/F
   bool display;            // LED display sequence, T/F
-  bool filter;             // Filter for temperature, T/F
-  bool model;              // Run model, T/F
   bool publishP;           // Particle publish, T/F
   bool query;              // Query schedule and OAT, T/F
   bool read;               // Read, T/F
@@ -372,31 +370,12 @@ void loop()
   static unsigned long lastDwellTp  = 0UL; // Last dwellTp time, ms
   static unsigned long lastControl  = 0UL; // Last control law time, ms
   static unsigned long lastDisplay  = 0UL; // Las display time, ms
-  static unsigned long lastFilter   = 0UL; // Last filter time, ms
-  static unsigned long lastModel    = 0UL; // Las model time, ms
   static unsigned long lastPublishP = 0UL; // Last publish time, ms
   static unsigned long lastQuery    = 0UL; // Last read time, ms
   static unsigned long lastRead     = 0UL; // Last read time, ms
   static unsigned long lastSerial   = 0UL; // Last Serial print time, ms
-  static double tFilter;   // Modeled temp, F
 
-  // Sequencing
-  filter = ((now-lastFilter)>=FILTER_DELAY) || reset>0;
-  if ( filter )
-  {
-    tFilter     = float(now-lastFilter)/1000.0;
-    if ( debug > 3 ) Serial.printf("Filter update=%7.3f\n", tFilter);
-    lastFilter    = now;
-  }
-
-  model     = ((now-lastModel)>=MODEL_DELAY) || reset;
-  if ( model )
-  {
-    if ( debug > 3 ) Serial.printf("Model update=%7.3f\n", float(now-lastModel)/1000.0);
-    lastModel    = now;
-  }
-
-  // Blynk
+  // Blynk  TODO:   these go inside loop?
   Blynk.run();
   blynk_timer_1.run(); blynk_timer_2.run(); blynk_timer_3.run(); blynk_timer_4.run(); 
   if (millis() - lastSync > ONE_DAY_MILLIS)
@@ -415,6 +394,8 @@ void loop()
   if ( readTp   ) lastReadTp   = now;
   dwellTp = ( (dwellTp && ((now-lastDwellTp)<DWELL_TP_DELAY)) || readTp);
   if ( !dwellTp   ) lastDwellTp   = now;
+  now = millis();
+  double Tr = (now - lastRead)/1e3;
   read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishP;
   if ( read     ) lastRead      = now;
 
@@ -445,7 +426,7 @@ void loop()
     updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
     lastControl   = now;
   }
-  delay(500);
+  delay(5);
   if ( bare )
   {
     delay ( bare_wait );
@@ -476,7 +457,7 @@ void loop()
       double t = min(max(MINSET, potDmd), MAXSET);
       setSaveDisplayTemp(t);
       held = false;  // allow the pot to override the web demands.  HELD allows web to override schd.
-      if ( debug>0 ) Serial.printf("Setpoint based on pot:  %f\n", t);
+      if ( debug>6 ) Serial.printf("Setpoint based on pot:  %f\n", t);
       lastChangedPot = potValue;
   }
   //
@@ -488,7 +469,6 @@ void loop()
     controlMode     = WEB;
     double t = min(max(MINSET, webDmd), MAXSET);
     setSaveDisplayTemp(t);
-    if (debug>0) Serial.printf("**********************Setpoint based on web:  %f\n", t);
     lastChangedWebDmd   = webDmd;
   }
   else if ( !held )
@@ -496,7 +476,6 @@ void loop()
     controlMode = AUTO;
     double t = min(max(MINSET, NOMSET), MAXSET);
     setSaveDisplayTemp(t);
-    if (debug>0) Serial.printf("******************Setpoint based on auto:  %f\n", t);
   }
   if ( webHold!=lastHold )
   {
@@ -504,12 +483,13 @@ void loop()
     held        = webHold;
     saveTemperature(int(set), int(webDmd), held, EEPROM_ADDR);
   }
-  if ( controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO\n");
-  else if ( controlMode==WEB ) Serial.printf("*******************Setpoint WEB\n");
-  else if ( controlMode==POT ) Serial.printf("*******************Setpoint POT\n");
-  else Serial.printf("*******************unknown controlMode %d\n", controlMode);
-
-  if ( debug>3 ) { Serial.print(F("debug loop message here=")); Serial.println(F(", ")); };
+  if ( debug>6 )
+  {
+    if ( controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO\n");
+    else if ( controlMode==WEB ) Serial.printf("*******************Setpoint WEB\n");
+    else if ( controlMode==POT ) Serial.printf("*******************Setpoint POT\n");
+    else Serial.printf("*******************unknown controlMode %d\n", controlMode);
+  }
 
   #ifndef NO_WEATHER_HOOK
     // Get OAT webhook
@@ -537,6 +517,7 @@ void loop()
       double err_comp = DEAD(err, DB)*G;
       prop = max(min(err_comp * tau, 20), -20);   // TODO the prop limits do nothing
       integ = max(min(integ + updateTime*err_comp, pcnt_pot-prop), -prop);
+      if ( (reset>0) & bare ) integ = 100;
       cont = max(min(integ+prop, pcnt_pot), 0);
     }
 
@@ -557,8 +538,8 @@ void loop()
   // Read sensors
   if ( read )
   {
-    if ( debug>3 ) Serial.println(F("read"));
-    testing = load(reset, T, now);
+    if ( debug > 3 ) Serial.printf("Read update=%7.3f\n", Tr);
+    testing = load(reset, Tr);
     if ( !bare )
     {
       testing = testing;
@@ -622,7 +603,7 @@ void serial_print(double cmd)
 
 // Load and filter
 // TODO:   move 'read' stuff here
-boolean load(int reset, double T, unsigned int time_ms)
+boolean load(int reset, double T)
 {
   static boolean done_testing = false;
 
@@ -664,7 +645,7 @@ boolean load(int reset, double T, unsigned int time_ms)
     Tp_Sense = double(raw_pot_control)/4096. * 10 + 70;;
     pcnt_pot = 100.;
     duct->update(reset, T, Tp_Sense,  duty);
-    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, 0.0);
+    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, 0.0, set);
     Ta_Sense    = room->Ta();
   }
 

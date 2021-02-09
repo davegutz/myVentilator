@@ -86,7 +86,7 @@ public:
     RoomTherm(const String name, const double cpa, const double dn_tadot, const double dn_twdot, const double qcon,
         const double qlk, const double rsa, const double rsai, const double rsao, const double trans_conv_low,
         const double trans_conv_high);
-    void update(const int reset, const double T, const double Tdso, const double mdot, const double OAT, const double otherHeat);
+    void update(const int reset, const double T, const double Tdso, const double mdot, const double OAT, const double otherHeat, const double set);
     double Ta(void){return Ta_;};
     double Tw(void){return Tw_;};
 };

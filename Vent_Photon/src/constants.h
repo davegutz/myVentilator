@@ -55,13 +55,11 @@ extern const int8_t debug = 5;         // Level of debug printing (3)
 #define MINSET 50               // Minimum setpoint allowed (50), F
 #define MAXSET 75               // Maximum setpoint allowed (75), F
 #define CONTROL_DELAY    2000UL     // Control law wait, ms (5000)
-#define MODEL_DELAY      5000UL     // Model wait, ms (5000)
 #define PUBLISH_DELAY    10000UL    // Time between cloud updates, ms (30000UL)
 #define PUBLISH_PARTICLE_DELAY 2000UL // Particle cloud updates (5000UL)
-#define READ_DELAY       1000UL     // Sensor read wait (5000, 100 for stress test), ms (1000UL)
+#define READ_DELAY       500UL      // Sensor read wait (5000, 100 for stress test), ms (1000UL)
 #define QUERY_DELAY      900000UL   // Web query wait (15000, 100 for stress test), ms (900000UL)
 #define DISPLAY_DELAY    300UL      // Serial display scheduling frame time, ms (300UL)
-#define FILTER_DELAY     5000UL     // In range of tau/4 - tau/3  * 1000, ms (5000UL)
 #define SERIAL_DELAY     5000UL     // Serial print interval (5000UL)
 #define STAT_RESERVE     150        // Space to reserve for status string publish (150)
 #define HYST             0.01       // Heat control law hysteresis (0.75), F
