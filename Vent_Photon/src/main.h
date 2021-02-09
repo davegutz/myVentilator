@@ -552,7 +552,7 @@ void loop()
   // Publish to Particle cloud if desired (different than Blynk)
   // Visit https://console.particle.io/events.   Click on "view events on a terminal"
   // to get a curl command to run
-  if ( debug>3 && publishP )
+  if ( (debug>0) & publishP )
   {
     if ( debug>3 ) Serial.println(F("publish"));
     publish_particle(now, publishP, cmd);
@@ -736,12 +736,12 @@ void publish_particle(unsigned long now, bool publishP, double cmd)
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
-  if ( debug>1 ) Serial.println(tmpsStr);
+  if ( debug>2 ) Serial.println(tmpsStr);
   if ( Particle.connected() )
   {
     if ( publishP ) 
     {
-      if (debug>4) Serial.printf("Particle write\n");
+      if ( debug>2 ) Serial.printf("Particle write\n");
       unsigned nowSec = now/1000UL;
       unsigned sec = nowSec%60;
       unsigned min = (nowSec%3600)/60;
@@ -753,7 +753,7 @@ void publish_particle(unsigned long now, bool publishP, double cmd)
   }
   else
   {
-    if ( debug>2 ) Serial.printf("Particle not connected....connecting\n");
+    if ( debug>1 ) Serial.printf("Particle not connected....connecting\n");
     Particle.connect();
     numTimeouts++;
   }
