@@ -183,9 +183,6 @@ int hum = 68;               // Relative humidity integer value, %
 int I2C_Status = 0;         // Bus status
 double Ta_Sense = NOMSET;   // Sensed ambient room temp, F
 double Ta_Filt = NOMSET;    // Filtered, sensed ambient room temp, F
-   double Tp_AB2 = NOMSET;
-   double Tp_Tustin = NOMSET;
-   double Tp_2pole = NOMSET;
 double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
@@ -238,10 +235,7 @@ DuctTherm* duct;            // Duct model
 DuctTherm* ductEmbMod;      // Duct embedded model
 RoomTherm* room;            // Room model
 RoomTherm* roomEmbMod;      // Room embedded model
-LagExp* TaSenseFilt;        // Sensor noise and general loop filter
-AB2_Integrator* AB2;  // Test
-TustinIntegrator* Tustin;  // Test
-General2_Pole* G2P; // Test
+General2_Pole* TaSenseFilt; // Sensor noise and general loop filter
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -319,10 +313,8 @@ void setup()
     M_DUCT_TEMP_DROP, M_MDOTL_DECR, M_MDOTL_INCR, M_MUA, M_RHOA);
   room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
-  TaSenseFilt = new LagExp(READ_DELAY/1000, 20, 50, 100);
-  AB2 = new AB2_Integrator(READ_DELAY/1000, -10, 10);
-  Tustin = new TustinIntegrator(READ_DELAY/1000, -10, 10);
-  G2P = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.707, 0.0, 120.);
+  TaSenseFilt = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.80, 0.0, 120.);
+
   // Begin
   Particle.connect();
   #ifndef NO_CLOUD
@@ -403,12 +395,14 @@ void loop()
   // Read sensors
   // Stop every READ_TP_DELAY to read Tp, because it is corrupted by noise when running.
   // If Tp has changed since last
-  readTp  = ( ( ((now-lastReadTp)>=READ_TP_DELAY) && ( abs(Tp_Sense-last_Tp_Sense)<1e-2 ) ) || reset>0 );
-  if ( readTp   )
+  if ( abs(Tp_Sense-last_Tp_Sense)>0.01 )
   {
+    if ( debug>1 ) Serial.printf("TP:   Tp_Sense=%7.3f, last_Tp_Sense=%7.3f\n", Tp_Sense, last_Tp_Sense);
     last_Tp_Sense = Tp_Sense;
-    lastReadTp   = now;
+    lastReadTp = now;
   }
+  readTp  = ( ((now-lastReadTp)>=READ_TP_DELAY)  || reset>0 );
+  if ( readTp   ) lastReadTp   = now;
   dwellTp = ( (dwellTp && ((now-lastDwellTp)<DWELL_TP_DELAY)) || readTp );
   if ( !dwellTp ) lastDwellTp   = now;
   double deltaR = double(now - lastRead)/1000.;
@@ -611,9 +605,6 @@ void serial_print(double cmd)
   {
     Serial.print(cmd, 2); Serial.print(F(", "));
     Serial.print(duty, DEC); Serial.print(F(", "));
-      Serial.print(Tp_AB2, 1); Serial.print(", ");
-      Serial.print(Tp_Tustin, 1); Serial.print(", ");
-      Serial.print(Tp_2pole, 1); Serial.print(", ");
     Serial.println("");
   }
   else
@@ -669,11 +660,7 @@ boolean load(int reset, double T)
     room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, 0.0, set);
     Ta_Sense = room->Ta();
   }
-
-  // Ta_Filt = TaSenseFilt->calculate(Ta_Sense, reset, T);
-  Tp_AB2 = AB2->calculate((Tp_Sense-74)/10, T, reset, 0);
-  Tp_Tustin = Tustin->calculate((Tp_Sense-74)/10, T, reset, 0);
-  Ta_Filt = G2P->calculate( Ta_Sense, reset, T);
+  Ta_Filt = TaSenseFilt->calculate( Ta_Sense, reset, T);
 
   // Built-in-test logic.   Run until finger detected
   if ( true && !done_testing )
