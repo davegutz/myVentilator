@@ -284,8 +284,6 @@ RateLagTustin::RateLagTustin(const double T, const double tau, const double min,
 {
   RateLagTustin::assignCoeff(tau);
 }
-//RateLagTustin::RateLagTustin(const RateLagTustin & RLT)
-//: DiscreteFilter(RLT.T_, RLT.tau_, RLT.min_, RLT.max_){}
 RateLagTustin::~RateLagTustin() {}
 // operators
 // functions
@@ -384,8 +382,6 @@ LeadLagExp::LeadLagExp(const double T, const double tld, const double tau, const
 {
   LeadLagExp::assignCoeff(tld, tau, T);
 }
-//LeadLagExp::LeadLagExp(const LeadLagExp & RLT)
-//: DiscreteFilter(RLT.T_, RLT.tau_, RLT.min_, RLT.max_){}
 LeadLagExp::~LeadLagExp() {}
 // operators
 // functions
@@ -547,3 +543,103 @@ void LagTustin::assignCoeff(double tau)
 }
 double LagTustin::state(void) { return (state_); };
 
+
+// Exp lag calculator variable update rate and limits
+// constructors
+LagExp::LagExp() : DiscreteFilter() {}
+LagExp::LagExp(const double T, const double tau, const double min, const double max)
+    : DiscreteFilter(T, tau, min, max)
+{
+  LagExp::assignCoeff(tau);
+}
+LagExp::~LagExp() {}
+// operators
+// functions
+double LagExp::calculate(double in, int RESET)
+{
+  if (RESET > 0)
+  {
+    lstate_ = in;
+    rstate_ = in;
+    rate_ = 0;
+  }
+  LagExp::rateState(in);
+  return (rate_);
+}
+double LagExp::calculate(double in, int RESET, const double T)
+{
+  if (RESET > 0)
+  {
+    lstate_ = in;
+    rstate_ = in;
+  }
+  LagExp::rateState(in, T);
+  return (lstate_);
+}
+void LagExp::rateState(double in)
+{
+  rate_ = c_ * (a_ * rstate_ + b_ * in - lstate_);
+  rstate_ = in;
+  lstate_ = fmax(fmin(lstate_ + T_ * rate_, max_), min_);
+}
+void LagExp::rateState(double in, const double T)
+{
+  T_ = T;
+  assignCoeff(tau_);
+  rateState(in);
+}
+void LagExp::assignCoeff(double tau)
+{
+  double eTt = exp(-T_ / tau_);
+  double meTt = 1 - eTt;
+  a_ = tau_ / T_ - eTt / meTt;
+  b_ = 1.0 / meTt - tau_ / T_;
+  c_ = meTt / T_;
+}
+double LagExp::state(void) { return (lstate_); };
+
+
+// class DiscreteIntegrator
+// constructors
+DiscreteIntegrator::DiscreteIntegrator()
+  : max_(1e32), min_(-1e32), T_(1.0){}
+DiscreteIntegrator::DiscreteIntegrator(const double T, const double min, const double max, 
+  const double a, const double b, const double c)
+  : a_(a), b_(b), c_(c), max_(max), min_(min), lstate_(0), rstate_(0), T_(T) {}
+DiscreteIntegrator::~DiscreteIntegrator() {}
+// operators
+// functions
+double DiscreteIntegrator::calculate(double in, int RESET, double init_value)
+{
+  if (RESET > 0)
+  {
+    lstate_ = init_value;
+    rstate_ = 0.0;
+  }
+  else
+  {
+    lstate_ = min(max( (a_*in + b_*rstate_)*T_/c_ + lstate_, min_), max_);
+  }
+  rstate_ = in;
+  return (lstate_);
+}
+
+// AB-2 Integrator future-predictor
+// constructors
+AB2_Integrator::AB2_Integrator() : DiscreteIntegrator() {}
+AB2_Integrator::AB2_Integrator(const double T, const double min, const double max)
+    : DiscreteIntegrator(T, min, max, 3.0, -1.0, 2.0)
+{}
+AB2_Integrator::~AB2_Integrator() {}
+// operators
+// functions
+
+// Tustin Integrator updater
+// constructors
+Tustin_Integrator::Tustin_Integrator() : DiscreteIntegrator() {}
+Tustin_Integrator::Tustin_Integrator(const double T, const double min, const double max)
+    : DiscreteIntegrator(T, min, max, 1.0, 1.0, 2.0)
+{}
+Tustin_Integrator::~Tustin_Integrator() {}
+// operators
+// functions

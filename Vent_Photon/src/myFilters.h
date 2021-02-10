@@ -6,6 +6,7 @@
   07-Jan-2015   Dave Gutz   Created
   30-Sep-2016   Dave Gutz   LeadLagTustin
   23-Nov-2016   Dave Gutz   LeadLagExp
+  09-Feb-2021   Dave Gutz   RateLagExp, LagExp, General2_Pole
  ****************************************************/
 
 #ifndef _myFilters_H
@@ -215,7 +216,6 @@ class RateLagExp : public DiscreteFilter
 public:
   RateLagExp();
   RateLagExp(const double T, const double tau, const double min, const double max);
-  //RateLagExp(const RateLagExp & RLT);
   ~RateLagExp();
   //operators
   //functions
@@ -262,6 +262,130 @@ protected:
   double b_;
   double rate_;
   double state_;
+};
+
+// Exponential lag calculator
+class LagExp : public DiscreteFilter
+{
+public:
+  LagExp();
+  LagExp(const double T, const double tau, const double min, const double max);
+  ~LagExp();
+  //operators
+  //functions
+  virtual double calculate(double in, int RESET);
+  virtual double calculate(double in, int RESET, const double T);
+  virtual void assignCoeff(double tau);
+  virtual void rateState(double in);
+  virtual void rateState(double in, const double T);
+  virtual double state(void);
+  double a() { return (a_); };
+  double b() { return (b_); };
+  double c() { return (c_); };
+  double rate() { return (rate_); };
+  double lstate() { return (lstate_); };
+  double rstate() { return (rstate_); };
+protected:
+  double a_;
+  double b_;
+  double c_;
+  double rate_;
+  double lstate_;
+  double rstate_;
+};
+
+// 2-pole filters
+class DiscreteFilter2
+{
+public:
+  DiscreteFilter2();
+  DiscreteFilter2(const double T, const double w, const double z, const double min, const double max);
+  virtual ~DiscreteFilter2();
+  // operators
+  // functions
+  virtual double calculate(double in, int RESET);
+  virtual void assignCoeff(double w, double z);
+  virtual void rateState(double in);
+  virtual double rateStateCalc(double in);
+  virtual double state(void);
+
+protected:
+  double max_;
+  double min_;
+  double bstate_;
+  double wstate_;
+  double T_;
+  double w_;
+  double z_;
+};
+
+// General 2-Pole for any value of z, aliases easily though
+class General2_Pole : public DiscreteFilter2
+{
+public:
+  General2_Pole();
+  General2_Pole(const double T, const double tld, const double tau, const double min, const double max);
+  ~General2_Pole();
+  //operators
+  //functions
+  virtual double calculate(const double in, const int RESET);
+  virtual double calculate(const double in, const int RESET, const double T);
+  virtual double calculate(double in, int RESET, const double T, const double tau, const double tld);
+  virtual void assignCoeff(const double tld, const double tau, const double T);
+  virtual double rateStateCalc(const double in);
+  virtual double rateStateCalc(const double in, const double T);
+  virtual double state(void);
+
+protected:
+  double a_;
+  double b_;
+  double state_;
+  double tld_;
+};
+
+// Integrators
+class DiscreteIntegrator
+{
+public:
+  DiscreteIntegrator();
+  DiscreteIntegrator(const double T, const double min, const double max, const double a, const double b, const double c);
+  virtual ~DiscreteIntegrator();
+  // operators
+  // functions
+  virtual double calculate(double in, int RESET, double init_value);
+protected:
+  double max_;
+  double min_;
+  double lstate_;
+  double rstate_;
+  double T_;
+  double a_;
+  double b_;
+  double c_;
+};
+
+// AB2_Integrator
+class AB2_Integrator : public DiscreteIntegrator
+{
+public:
+  AB2_Integrator();
+  AB2_Integrator(const double T, const double min, const double max);
+  ~AB2_Integrator();
+  //operators
+  //functions
+protected:
+};
+
+// Tustin Integrator
+class TustinIntegrator : public DiscreteIntegrator
+{
+public:
+  TustinIntegrator();
+  TustinIntegrator(const double T, const double min, const double max);
+  ~TustinIntegrator();
+  //operators
+  //functions
+protected:
 };
 
 #endif

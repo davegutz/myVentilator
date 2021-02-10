@@ -182,6 +182,7 @@ char buffer[256];           // Serial print buffer
 int hum = 68;               // Relative humidity integer value, %
 int I2C_Status = 0;         // Bus status
 double Ta_Sense = NOMSET;   // Sensed ambient room temp, F
+double Ta_Filt = NOMSET;    // Filtered, sensed ambient room temp, F
 double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
@@ -234,7 +235,7 @@ DuctTherm* duct;            // Duct model
 DuctTherm* ductEmbMod;      // Duct embedded model
 RoomTherm* room;            // Room model
 RoomTherm* roomEmbMod;      // Room embedded model
-
+LagExp* TaSenseFilt;        // Sensor noise and general loop filter
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -307,11 +308,12 @@ void setup()
     Particle.subscribe("hook-response/get_weather", gotWeatherData, MY_DEVICES);
   #endif
 
-  // Models
+  // Filters
   duct = new DuctTherm("duct", M_AP_0, M_AP_1, M_AP_2, M_AQ_0, M_AQ_1, M_AQ_2, M_DUCT_DIA,
     M_DUCT_TEMP_DROP, M_MDOTL_DECR, M_MDOTL_INCR, M_MUA, M_RHOA);
   room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
+  TaSenseFilt = new LagExp(READ_DELAY, 20, 50, 100);
 
   // Begin
   Particle.connect();
@@ -337,7 +339,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,set,Tp_Sense,Ta_Sense,hum,pot,OAT,cmd,,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,set,Tp_Sense,Ta_Sense,Ta_Filt,hum,pot,OAT,cmd,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -511,8 +513,8 @@ void loop()
   {
     if ( !dwellTp )  // Freeze control if dwellTp
     {
-      // TODO:  derivative action (30 sec lead) needed to compensate for duct heat soak (30 sec lag)?
-      err = set - Ta_Sense;
+      // err = set - Ta_Sense;
+      err = set - Ta_Filt;
       double err_comp = DEAD(err, DB)*G;
       prop = max(min(err_comp * tau, 20), -20);   // TODO the prop limits do nothing
       integ = max(min(integ + updateTime*err_comp, pcnt_pot-prop), -prop);
@@ -581,6 +583,7 @@ void serial_print_inputs(unsigned long now, double T)
   Serial.print(set, 1); Serial.print(", ");
   Serial.print(Tp_Sense, 1); Serial.print(", ");
   Serial.print(Ta_Sense, 1); Serial.print(", ");
+  Serial.print(Ta_Filt, 1); Serial.print(", ");
   Serial.print(hum, 1); Serial.print(", ");
   Serial.print(pcnt_pot, 1); Serial.print(", ");
   Serial.print(OAT, 1); Serial.print(", ");
@@ -591,7 +594,8 @@ void serial_print(double cmd)
 {
   if ( debug>0 )
   {
-    Serial.print(cmd, 2); Serial.print(F(", "));   Serial.println(F(""));
+    Serial.print(cmd, 2); Serial.print(F(", "));   Serial.print(F(""));
+    Serial.print(duty, DEC); Serial.print(F(", "));   Serial.println(F(""));
   }
   else
   {
@@ -644,8 +648,10 @@ boolean load(int reset, double T)
     pcnt_pot = 100.;
     duct->update(reset, T, Tp_Sense,  duty);
     room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, 0.0, set);
-    Ta_Sense    = room->Ta();
+    Ta_Sense = room->Ta();
   }
+
+  Ta_Filt = TaSenseFilt->calculate(Ta_Sense, reset, T);
 
   // Built-in-test logic.   Run until finger detected
   if ( true && !done_testing )
@@ -731,8 +737,8 @@ void publish4(void)
 void publish_particle(unsigned long now, bool publishP, double cmd)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%ld,%c", \
-    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty,'\0');
+  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%ld, %7.3f,%c", \
+    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty, Ta_Filt,'\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
