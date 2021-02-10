@@ -26,36 +26,55 @@
 //   You may have to be logged into https://console.particle.io/devices
 //   to have necessary permissions to curl
 // The Particle files are in ../src
-clear
-clear globals
+
+data_file = run_name + '.csv';
+[data_t, data_d] = load_csv_data(data_file);
+debug=2; plotting = %t; first_init_override = 1;
+
+if size(data_d,1)==0 then
+    error('debug.csv did not load.  Quitting\n')
+end
+
+[D, TD, first_init] = load_data(data_t, data_d);
+if exists('first_init_override') then
+    first_init = first_init_override;
+else
+    first_init_override = 0;
+end
+first = first_init;
+last = D.N;
+B = load_buffer(D, first, last);
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Loop emulation
+
+// Local logic initialization
+//RESET = zeros(D.N, 1, 'boolean'); RESET([1]) = %t;
+//hr_lgv = 0;
+//C.hr_valid = D.spo2*0;
+
+// Bandpass filter 1.5 - 4.5 Hz (0.11s - 0.03s)
+//[C.ir_rate, C.ir_lstate, C.ir_rate_state] = my_exp_rate_lag(D.ir, 1/(LO_BAND*2*%pi), T, -RATE_LIM, RATE_LIM, RESET);
+//[ir_filt_raw, C.ir_lag_state] = my_tustin_lag(C.ir_rate, 1/(HI_BAND*2*%pi), T, -5e4, 5e4, RESET);
+
+// Read the first BUFFER_SIZE-SAMPLE_SIZE samples
+//last = min(first+BUFFER_SIZE-SAMPLE_SIZE-1, D.N);
+//B = load_buffer(D, first, last, %f);
+
+// Detail serial print
+if debug>2 then serial_print_inputs_1(); end
+
+// Plots
+// Zoom last buffer
+if plotting then
+    zoom([-3600 D.time(last)])
+    zoom([-900 D.time(last)])
+    zoom([-120 D.time(last)])
+    if debug>1 then
+        plot_all()
+    end
+end
+
 mclose('all')
-funcprot(0);
-exec('filt_functions.sce');
-exec('load_data.sce');
-exec('overplot.sce');
-exec('serial_print.sce');
-exec('plotting.sce');
-exec('export_figs.sci');
 
-global figs D C P
-try close(figs); end
-figs=[];
-try
-    xdel(winsid())
-catch
-end
-
-// Local constants
-exec('constants.sce');
-
-// File to save results that look something like debug.csv
-[doubtfd, err] = mopen('./doubtf.csv', 'wt');
-if err then
-    printf('********** close doubtf.csv ************\n');
-end
-mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
-
-// Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
-//run_name = 'vent_2021-01-31T19-25';
-run_name = 'debug';
-exec('vent_data_reduce_driver.sce');
+export_figs(figs, run_name)

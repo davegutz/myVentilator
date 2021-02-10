@@ -34,7 +34,7 @@ function plot_data(%zoom, %loc)
     end
     figs($+1) = figure("Figure_name", 'Data', "Position", [%loc, %size]);
     subplot(211)
-    overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.OAT'], ['r-', 'g-', 'm-', 'b-'], 'Data temperatures', 'time, s', %zoom)
+    overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.Ta_Filt', 'P.D.OAT'], ['r-', 'g-', 'm-', 'k--', 'b-'], 'Data temperatures', 'time, s', %zoom)
     subplot(212)
     overplot(['P.D.prop', 'P.D.integ', 'P.D.cont', 'P.D.pcnt_pot', 'P.D.cmd', 'P.D.duty'], ['r--', 'g--', 'b-', 'b--', 'c-', 'm--'], 'Data cmd', 'time, s', %zoom)
 endfunction
@@ -51,7 +51,7 @@ function plot_compare(%zoom, %loc)
     end
 
     figs($+1) = figure("Figure_name", 'Data v Model -'+data_file, "Position", [%loc, %size]);
-    overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.cmd_scaled'], ['r-', 'g-', 'm-', 'k-'], 'Data temperatures', 'time, s', %zoom)
+    overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.Ta_Filt', 'P.D.cmd_scaled'], ['r-', 'g-', 'm-', 'k--', 'b-'], 'Data temperatures', 'time, s', %zoom)
 
 endfunction
 
@@ -80,6 +80,7 @@ function plot_all(%zoom, %loc)
     P.D.pcnt_pot = struct('time', D.time, 'values', D.pcnt_pot);
     P.D.duty = struct('time', D.time, 'values', D.duty);
     P.D.cmd_scaled = struct('time', D.time, 'values', D.cmd_scaled);
+    P.D.Ta_Filt = struct('time', D.time, 'values', D.Ta_Filt);
 
     P.B.set = struct('time', B.time, 'values', B.set);
     P.B.Tp_Sense = struct('time', B.time, 'values', B.Tp_Sense);
@@ -95,6 +96,7 @@ function plot_all(%zoom, %loc)
     P.B.pcnt_pot = struct('time', B.time, 'values', B.pcnt_pot);
     P.B.duty = struct('time', B.time, 'values', B.duty);
     P.B.cmd_scaled = struct('time', B.time, 'values', B.cmd_scaled);
+    P.B.Ta_Filt = struct('time', D.time, 'values', B.Ta_Filt);
 
     plot_data(%zoom, %loc + [30 30]);
     plot_compare(%zoom, %loc + [60 60]);
@@ -160,7 +162,7 @@ function plot_model(%zoom, %loc)
     subplot(221)
     overplot(['P.M.TaDot', 'P.M.TwDot'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
     subplot(224)
-    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss'], ['k-', 'c--', 'g-', 'r--', 'b--'], 'Duct', 'time, s', %zoom)
+    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.B.Ta_Filt', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss'], ['k-', 'c--', 'g-', 'k--', 'r--', 'b--'], 'Duct', 'time, s', %zoom)
     subplot(223)
     overplot(['P.M.Qmatch', 'P.M.Qconv'], ['b-', 'g-'], 'Flow', 'time, s', %zoom)
 
@@ -184,7 +186,7 @@ function plot_model(%zoom, %loc)
     subplot(221)
     overplot(['P.C.duty', 'P.B.duty', 'P.B.cmd'], ['g-', 'r-',  'b-'], 'Flow', 'time, s', %zoom)
     subplot(222)
-    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.B.set'], ['r-', 'b-', 'g-'], 'Flow', 'time, s', %zoom)
+    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.B.Ta_Filt', 'P.B.set'], ['r-', 'b-', 'k--', 'g-'], 'Flow', 'time, s', %zoom)
     subplot(223)
     overplot(['P.B.prop', 'P.B.integ', 'P.B.duty'], ['r-', 'b-', 'g--'], 'Flow', 'time, s', %zoom)
 //    overplot(['P.B.prop', 'P.B.integ'], ['r-', 'b-', 'g-'], 'Flow', 'time, s', %zoom)
@@ -278,6 +280,7 @@ function plot_all_model(%zoom, %loc)
     P.B.cmd =  struct('time', B.time, 'values', B.cmd);
     P.B.integ =  struct('time', B.time, 'values', B.integ);
     P.B.prop =  struct('time', B.time, 'values', B.prop);
+    P.B.Ta_Filt = struct('time', B.time, 'values', B.Ta_Filt);
 
     P.C.integ =  struct('time', B.time, 'values', C.integ);
     P.C.prop =  struct('time', B.time, 'values', C.prop);

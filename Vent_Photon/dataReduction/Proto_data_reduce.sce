@@ -49,13 +49,13 @@ end
 exec('constants.sce');
 
 // File to save results that look something like debug.csv
-[doubtfd, err] = mopen('./doubtf.csv', 'wt');
+[doubtfd, err] = mopen('./doubtfProto.csv', 'wt');
 if err then
     printf('********** close doubtf.csv ************\n');
 end
-mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
+mfprintf(doubtfd, 'doubtfProto.csv debug output of HR4C_data_reduce.sce\n');
 
 // Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
 //run_name = 'vent_2021-01-31T19-25';
-run_name = 'debug';
+run_name = 'debugProto';
 exec('vent_data_reduce_driver.sce');

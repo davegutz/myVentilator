@@ -185,6 +185,7 @@ double Ta_Sense = NOMSET;   // Sensed ambient room temp, F
 double Ta_Filt = NOMSET;    // Filtered, sensed ambient room temp, F
    double Tp_AB2 = NOMSET;
    double Tp_Tustin = NOMSET;
+   double Tp_2pole = NOMSET;
 double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
@@ -240,6 +241,7 @@ RoomTherm* roomEmbMod;      // Room embedded model
 LagExp* TaSenseFilt;        // Sensor noise and general loop filter
 AB2_Integrator* AB2;  // Test
 TustinIntegrator* Tustin;  // Test
+General2_Pole* G2P; // Test
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -320,7 +322,7 @@ void setup()
   TaSenseFilt = new LagExp(READ_DELAY/1000, 20, 50, 100);
   AB2 = new AB2_Integrator(READ_DELAY/1000, -10, 10);
   Tustin = new TustinIntegrator(READ_DELAY/1000, -10, 10);
-
+  G2P = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.707, 0.0, 120.);
   // Begin
   Particle.connect();
   #ifndef NO_CLOUD
@@ -382,6 +384,7 @@ void loop()
   static unsigned long lastQuery    = 0UL; // Last read time, ms
   static unsigned long lastRead     = 0UL; // Last read time, ms
   static unsigned long lastSerial   = 0UL; // Last Serial print time, ms
+  static double last_Tp_Sense = NOMSET;   // For testing of change in value for shutdown function
 
   // Blynk  TODO:   these go inside loop?
   Blynk.run();
@@ -398,10 +401,16 @@ void loop()
   if ( publishP ) lastPublishP  = now;
 
   // Read sensors
-  readTp  = ((now-lastReadTp) >= READ_TP_DELAY  || reset>0);
-  if ( readTp   ) lastReadTp   = now;
-  dwellTp = ( (dwellTp && ((now-lastDwellTp)<DWELL_TP_DELAY)) || readTp);
-  if ( !dwellTp   ) lastDwellTp   = now;
+  // Stop every READ_TP_DELAY to read Tp, because it is corrupted by noise when running.
+  // If Tp has changed since last
+  readTp  = ( ( ((now-lastReadTp)>=READ_TP_DELAY) && ( abs(Tp_Sense-last_Tp_Sense)<1e-2 ) ) || reset>0 );
+  if ( readTp   )
+  {
+    last_Tp_Sense = Tp_Sense;
+    lastReadTp   = now;
+  }
+  dwellTp = ( (dwellTp && ((now-lastDwellTp)<DWELL_TP_DELAY)) || readTp );
+  if ( !dwellTp ) lastDwellTp   = now;
   double deltaR = double(now - lastRead)/1000.;
   read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishP;
   if ( read     ) lastRead      = now;
@@ -604,6 +613,7 @@ void serial_print(double cmd)
     Serial.print(duty, DEC); Serial.print(F(", "));
       Serial.print(Tp_AB2, 1); Serial.print(", ");
       Serial.print(Tp_Tustin, 1); Serial.print(", ");
+      Serial.print(Tp_2pole, 1); Serial.print(", ");
     Serial.println("");
   }
   else
@@ -660,9 +670,10 @@ boolean load(int reset, double T)
     Ta_Sense = room->Ta();
   }
 
-  Ta_Filt = TaSenseFilt->calculate(Ta_Sense, reset, T);
+  // Ta_Filt = TaSenseFilt->calculate(Ta_Sense, reset, T);
   Tp_AB2 = AB2->calculate((Tp_Sense-74)/10, T, reset, 0);
-  Tp_Tustin = AB2->calculate((Tp_Sense-74)/10, T, reset, 0);
+  Tp_Tustin = Tustin->calculate((Tp_Sense-74)/10, T, reset, 0);
+  Ta_Filt = G2P->calculate( Ta_Sense, reset, T);
 
   // Built-in-test logic.   Run until finger detected
   if ( true && !done_testing )

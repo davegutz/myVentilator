@@ -14,6 +14,7 @@
 
 #define DEAD(X, HDB)  ( max(X-HDB, 0) + min(X+HDB, 0) )
 
+
 class Debounce
 {
 public:
@@ -28,7 +29,6 @@ protected:
   int nz_;     // Number of past consequetive states to agree with input to pass debounce
   bool *past_; // Array(nz_-1) of past inputs
 };
-
 
 
 class DetectRise
@@ -58,6 +58,7 @@ public:
 protected:
   bool state_;
 };
+
 
 class Delay
 {
@@ -96,6 +97,7 @@ protected:
   double T_;
 };
 
+
 class RateLimit
 {
 public:
@@ -116,6 +118,8 @@ protected:
   double T_;      // Update rate, sec
 };
 
+
+// ************************** 1-Pole Filters ***********************************************
 class DiscreteFilter
 {
 public:
@@ -129,7 +133,6 @@ public:
   virtual void rateState(double in);
   virtual double rateStateCalc(double in);
   virtual double state(void);
-
 protected:
   double max_;
   double min_;
@@ -137,6 +140,7 @@ protected:
   double T_;
   double tau_;
 };
+
 
 // Tustin rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
 class LeadLagTustin : public DiscreteFilter
@@ -155,13 +159,13 @@ public:
   virtual double rateStateCalc(const double in);
   virtual double rateStateCalc(const double in, const double T);
   virtual double state(void);
-
 protected:
   double a_;
   double b_;
   double state_;
   double tld_;
 };
+
 
 // Tustin rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
 class LeadLagExp : public DiscreteFilter
@@ -180,7 +184,6 @@ public:
   virtual double rateStateCalc(const double in);
   virtual double rateStateCalc(const double in, const double T);
   virtual double state(void);
-
 protected:
   double a_;
   double b_;
@@ -188,6 +191,7 @@ protected:
   double instate_;
   double tld_;
 };
+
 
 // Tustin rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
 class RateLagTustin : public DiscreteFilter
@@ -203,12 +207,12 @@ public:
   virtual void assignCoeff(double tau);
   virtual void rateState(double in);
   virtual double state(void);
-
 protected:
   double a_;
   double b_;
   double state_;
 };
+
 
 // Exponential rate-lag rate calculator
 class RateLagExp : public DiscreteFilter
@@ -238,6 +242,7 @@ protected:
   double rstate_; // rate state
 };
 
+
 // Tustin lag calculator
 class LagTustin : public DiscreteFilter
 {
@@ -263,6 +268,7 @@ protected:
   double rate_;
   double state_;
 };
+
 
 // Exponential lag calculator
 class LagExp : public DiscreteFilter
@@ -294,55 +300,8 @@ protected:
   double rstate_;
 };
 
-// 2-pole filters
-class DiscreteFilter2
-{
-public:
-  DiscreteFilter2();
-  DiscreteFilter2(const double T, const double w, const double z, const double min, const double max);
-  virtual ~DiscreteFilter2();
-  // operators
-  // functions
-  virtual double calculate(double in, int RESET);
-  virtual void assignCoeff(double w, double z);
-  virtual void rateState(double in);
-  virtual double rateStateCalc(double in);
-  virtual double state(void);
 
-protected:
-  double max_;
-  double min_;
-  double bstate_;
-  double wstate_;
-  double T_;
-  double w_;
-  double z_;
-};
-
-// General 2-Pole for any value of z, aliases easily though
-class General2_Pole : public DiscreteFilter2
-{
-public:
-  General2_Pole();
-  General2_Pole(const double T, const double tld, const double tau, const double min, const double max);
-  ~General2_Pole();
-  //operators
-  //functions
-  virtual double calculate(const double in, const int RESET);
-  virtual double calculate(const double in, const int RESET, const double T);
-  virtual double calculate(double in, int RESET, const double T, const double tau, const double tld);
-  virtual void assignCoeff(const double tld, const double tau, const double T);
-  virtual double rateStateCalc(const double in);
-  virtual double rateStateCalc(const double in, const double T);
-  virtual double state(void);
-
-protected:
-  double a_;
-  double b_;
-  double state_;
-};
-
-// Integrators
+// *********************** Integrators *******************************************
 class DiscreteIntegrator
 {
 public:
@@ -353,6 +312,9 @@ public:
   // functions
   virtual double calculate(double in, int RESET, double init_value);
   virtual double calculate(double in, double T, int RESET, double init_value);
+  virtual void newState(double newState);
+  virtual double state() { return lstate_; };
+  virtual bool lim() { return lim_; };
 protected:
   double a_;
   double b_;
@@ -364,6 +326,7 @@ protected:
   double rstate_;
   double T_;
 };
+
 
 // AB2_Integrator
 class AB2_Integrator : public DiscreteIntegrator
@@ -377,6 +340,7 @@ public:
 protected:
 };
 
+
 // Tustin Integrator
 class TustinIntegrator : public DiscreteIntegrator
 {
@@ -389,5 +353,49 @@ public:
 protected:
 };
 
-#endif
 
+// ************************************** 2-pole filters  *************************
+class DiscreteFilter2
+{
+public:
+  DiscreteFilter2();
+  DiscreteFilter2(const double T, const double omega_n, const double zeta, const double min, const double max);
+  virtual ~DiscreteFilter2();
+  // operators
+  // functions
+  virtual double calculate(const double in, const int RESET);
+  virtual void assignCoeff(const double T);
+  virtual void rateState(const double in, const int RESET);
+  virtual void rateStateCalc(const double in, const double T, const int RESET);
+protected:
+  double max_;
+  double min_;
+  double omega_n_;
+  double T_;
+  double zeta_;
+};
+
+
+// General 2-Pole for any value of z, aliases easily though
+class General2_Pole : public DiscreteFilter2
+{
+public:
+  General2_Pole();
+  General2_Pole(const double T, const double omega_n, const double zeta, const double min, const double max);
+  ~General2_Pole();
+  //operators
+  //functions
+  virtual double calculate(const double in, const int RESET);
+  virtual double calculate(const double in, const int RESET, const double T);
+  virtual void assignCoeff(const double T);
+  virtual void rateState(const double in, const int RESET);
+  virtual void rateStateCalc(const double in, const double T, const int RESET);
+protected:
+  AB2_Integrator *AB2_;
+  double a_;
+  double b_;
+  TustinIntegrator *Tustin_;
+};
+
+
+#endif

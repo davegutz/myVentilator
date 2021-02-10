@@ -254,6 +254,7 @@ double RateLimit::calculate(const double in, const double Rmax, const double Rmi
 }
 
 
+// **************************** First Order Filters *************************************
 // class DiscreteFilter
 // constructors
 DiscreteFilter::DiscreteFilter()
@@ -275,6 +276,7 @@ void DiscreteFilter::rateState(double in) {}
 double DiscreteFilter::rateStateCalc(double in) { return (0); }
 void DiscreteFilter::assignCoeff(double tau) {}
 double DiscreteFilter::state(void) { return (0); }
+
 
 // Tustin rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
 // constructors
@@ -309,6 +311,7 @@ void RateLagTustin::assignCoeff(double tau)
 }
 double RateLagTustin::state(void) { return (state_); };
 
+
 // Tustin lead-lag alculator, non-pre-warped, no limits, fixed update rate
 // constructors
 LeadLagTustin::LeadLagTustin() : DiscreteFilter() {}
@@ -317,8 +320,6 @@ LeadLagTustin::LeadLagTustin(const double T, const double tld, const double tau,
 {
   LeadLagTustin::assignCoeff(tld, tau, T);
 }
-//LeadLagTustin::LeadLagTustin(const LeadLagTustin & RLT)
-//: DiscreteFilter(RLT.T_, RLT.tau_, RLT.min_, RLT.max_){}
 LeadLagTustin::~LeadLagTustin() {}
 // operators
 // functions
@@ -372,6 +373,7 @@ void LeadLagTustin::assignCoeff(const double tld, const double tau, const double
   b_ = (2.0 * tld_ + T_) / (2.0 * tau_ + T_);
 }
 double LeadLagTustin::state(void) { return (state_); };
+
 
 // Exponential lead-lag calculator, non-pre-warped, no limits, fixed update rate
 // http://www.mathpages.com/home/kmath198/2-2/2-2.htm
@@ -439,6 +441,7 @@ void LeadLagExp::assignCoeff(const double tld, const double tau, const double T)
 }
 double LeadLagExp::state(void) { return (state_); };
 
+
 // Exponential rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
 // constructors
 RateLagExp::RateLagExp() : DiscreteFilter() {}
@@ -447,8 +450,6 @@ RateLagExp::RateLagExp(const double T, const double tau, const double min, const
 {
   RateLagExp::assignCoeff(tau);
 }
-//RateLagExp::RateLagExp(const RateLagExp & RLT)
-//: DiscreteFilter(RLT.T_, RLT.tau_, RLT.min_, RLT.max_){}
 RateLagExp::~RateLagExp() {}
 // operators
 // functions
@@ -493,6 +494,7 @@ void RateLagExp::assignCoeff(double tau)
 }
 double RateLagExp::state(void) { return (lstate_); };
 
+
 // Tustin lag calculator, non-pre-warped, no limits, fixed update rate
 // constructors
 LagTustin::LagTustin() : DiscreteFilter() {}
@@ -501,8 +503,6 @@ LagTustin::LagTustin(const double T, const double tau, const double min, const d
 {
   LagTustin::assignCoeff(tau);
 }
-//LagTustin::LagTustin(const LagTustin & RLT)
-//: DiscreteFilter(RLT.T_, RLT.tau_, RLT.min_, RLT.max_){}
 LagTustin::~LagTustin() {}
 // operators
 // functions
@@ -599,6 +599,7 @@ void LagExp::assignCoeff(double tau)
 double LagExp::state(void) { return (lstate_); };
 
 
+// ***************************** Integrators ******************************************
 // class DiscreteIntegrator
 // constructors
 DiscreteIntegrator::DiscreteIntegrator()
@@ -609,29 +610,33 @@ DiscreteIntegrator::DiscreteIntegrator(const double T, const double min, const d
 DiscreteIntegrator::~DiscreteIntegrator() {}
 // operators
 // functions
+void DiscreteIntegrator::newState(double newState)
+{
+  lstate_ = max(min(newState, max_), min_);
+  rstate_ = 0.0;
+}
 double DiscreteIntegrator::calculate(double in, int RESET, double init_value)
 {
   if (RESET > 0)
   {
-    lstate_ = init_value;
-    rstate_ = 0.0;
+    lstate_ = init_value;  rstate_ = 0.0;
   }
   else
   {
     lstate_ += (a_*in + b_*rstate_)*T_/c_;
-    if ( lstate_<min_ )
-    {
-      lstate_ = min_;
-      lim_ = true;
-    }
-    else if ( lstate_>max_ )
-    {
-      lstate_ = max_;
-      lim_ = true;
-    }
-    else lim_ = false;
   }
-  rstate_ = in;
+  if ( lstate_<min_ )
+  {
+    lstate_ = min_;  lim_ = true;  rstate_ = 0.0;
+  }
+  else if ( lstate_>max_ )
+  {
+    lstate_ = max_;  lim_ = true;  rstate_ = 0.0;
+  }
+  else
+  {
+    lim_ = false;  rstate_ = in;
+  }
   return (lstate_);
 }
 double DiscreteIntegrator::calculate(double in, double T, int RESET, double init_value)
@@ -639,25 +644,24 @@ double DiscreteIntegrator::calculate(double in, double T, int RESET, double init
   T_ = T;
   if (RESET > 0)
   {
-    lstate_ = init_value;
-    rstate_ = 0.0;
+    lstate_ = init_value;  rstate_ = 0.0;
   }
   else
   {
     lstate_ += (a_*in + b_*rstate_)*T_/c_;
-    if ( lstate_<min_ )
-    {
-      lstate_ = min_;
-      lim_ = true;
-    }
-    else if ( lstate_>max_ )
-    {
-      lstate_ = max_;
-      lim_ = true;
-    }
-    else lim_ = false;
   }
-  rstate_ = in;
+  if ( lstate_<min_ )
+  {
+    lstate_ = min_;  lim_ = true;  rstate_ = 0.0;
+  }
+  else if ( lstate_>max_ )
+  {
+    lstate_ = max_;  lim_ = true;  rstate_ = 0.0;
+  }
+  else
+  {
+    lim_ = false;  rstate_ = in;
+  }
   return (lstate_);
 }
 
@@ -680,3 +684,74 @@ TustinIntegrator::TustinIntegrator(const double T, const double min, const doubl
 TustinIntegrator::~TustinIntegrator() {}
 // operators
 // functions
+
+
+// ************************ 2-Pole Filters *************************************************************
+
+
+DiscreteFilter2::DiscreteFilter2()
+  : max_(0), min_(0), omega_n_(0), T_(0), zeta_(0) {}
+DiscreteFilter2::DiscreteFilter2(const double T, const double omega_n, const double zeta, const double min, const double max)
+  : max_(max), min_(min), omega_n_(omega_n), T_(T), zeta_(zeta)
+   {
+   }
+DiscreteFilter2::~DiscreteFilter2() {}
+// functions
+double DiscreteFilter2::calculate(const double in, const int RESET) {return (0.0);}
+void DiscreteFilter2::assignCoeff(const double T) {}
+void DiscreteFilter2::rateState(const double in, const int RESET) {}
+void DiscreteFilter2::rateStateCalc(const double in, const double T, const int RESET) {}
+
+
+// General 2-Pole filter variable update rate and limits, poor aliasing characteristics
+// constructors
+General2_Pole::General2_Pole() : DiscreteFilter2() {}
+General2_Pole::General2_Pole(const double T, const double omega_n, const double zeta, const double min, const double max)
+    : DiscreteFilter2(T, omega_n, zeta, min, max)
+{
+  AB2_ = new AB2_Integrator(T, -1e12, 1e12);
+  Tustin_ = new TustinIntegrator(T, min, max);
+  a_ = 2 * zeta_ * omega_n_;
+  b_ = omega_n_ * omega_n_;
+  General2_Pole::assignCoeff(T);
+}
+General2_Pole::~General2_Pole() {}
+// operators
+// functions
+double General2_Pole::calculate(double in, int RESET)
+{
+  General2_Pole::rateState(in, RESET);
+  return (Tustin_->state());
+}
+void General2_Pole::assignCoeff(const double T)
+{
+  T_ = T;
+}
+double General2_Pole::calculate(double in, int RESET, const double T)
+{
+  General2_Pole::assignCoeff(T);
+  General2_Pole::rateStateCalc(in, T, RESET);
+  return (Tustin_->state());
+}
+void General2_Pole::rateState(double in, int RESET)
+{
+  double accel;
+  if ( RESET>0 )
+  {
+    accel = 0;
+  }
+  else
+  {
+    accel = b_*(in - Tustin_->state()) - a_*AB2_->state();
+  }
+  Tustin_->calculate(AB2_->calculate(accel, T_, RESET, 0), T_, RESET, in);
+  if ( Tustin_->lim() )
+  {
+    AB2_->newState(0);
+  }
+}
+void General2_Pole::rateStateCalc(double in, const double T, const int RESET)
+{
+  assignCoeff(T);
+  rateState(in, RESET);
+}
