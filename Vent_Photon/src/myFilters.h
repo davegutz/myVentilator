@@ -340,7 +340,6 @@ protected:
   double a_;
   double b_;
   double state_;
-  double tld_;
 };
 
 // Integrators
@@ -353,15 +352,17 @@ public:
   // operators
   // functions
   virtual double calculate(double in, int RESET, double init_value);
+  virtual double calculate(double in, double T, int RESET, double init_value);
 protected:
+  double a_;
+  double b_;
+  double c_;
+  bool lim_;
   double max_;
   double min_;
   double lstate_;
   double rstate_;
   double T_;
-  double a_;
-  double b_;
-  double c_;
 };
 
 // AB2_Integrator

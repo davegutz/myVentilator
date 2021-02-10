@@ -183,6 +183,8 @@ int hum = 68;               // Relative humidity integer value, %
 int I2C_Status = 0;         // Bus status
 double Ta_Sense = NOMSET;   // Sensed ambient room temp, F
 double Ta_Filt = NOMSET;    // Filtered, sensed ambient room temp, F
+   double Tp_AB2 = NOMSET;
+   double Tp_Tustin = NOMSET;
 double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
@@ -236,6 +238,8 @@ DuctTherm* ductEmbMod;      // Duct embedded model
 RoomTherm* room;            // Room model
 RoomTherm* roomEmbMod;      // Room embedded model
 LagExp* TaSenseFilt;        // Sensor noise and general loop filter
+AB2_Integrator* AB2;  // Test
+TustinIntegrator* Tustin;  // Test
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -313,7 +317,9 @@ void setup()
     M_DUCT_TEMP_DROP, M_MDOTL_DECR, M_MDOTL_INCR, M_MUA, M_RHOA);
   room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
-  TaSenseFilt = new LagExp(READ_DELAY, 20, 50, 100);
+  TaSenseFilt = new LagExp(READ_DELAY/1000, 20, 50, 100);
+  AB2 = new AB2_Integrator(READ_DELAY/1000, -10, 10);
+  Tustin = new TustinIntegrator(READ_DELAY/1000, -10, 10);
 
   // Begin
   Particle.connect();
@@ -594,8 +600,11 @@ void serial_print(double cmd)
 {
   if ( debug>0 )
   {
-    Serial.print(cmd, 2); Serial.print(F(", "));   Serial.print(F(""));
-    Serial.print(duty, DEC); Serial.print(F(", "));   Serial.println(F(""));
+    Serial.print(cmd, 2); Serial.print(F(", "));
+    Serial.print(duty, DEC); Serial.print(F(", "));
+      Serial.print(Tp_AB2, 1); Serial.print(", ");
+      Serial.print(Tp_Tustin, 1); Serial.print(", ");
+    Serial.println("");
   }
   else
   {
@@ -652,6 +661,8 @@ boolean load(int reset, double T)
   }
 
   Ta_Filt = TaSenseFilt->calculate(Ta_Sense, reset, T);
+  Tp_AB2 = AB2->calculate((Tp_Sense-74)/10, T, reset, 0);
+  Tp_Tustin = AB2->calculate((Tp_Sense-74)/10, T, reset, 0);
 
   // Built-in-test logic.   Run until finger detected
   if ( true && !done_testing )

@@ -605,7 +605,7 @@ DiscreteIntegrator::DiscreteIntegrator()
   : max_(1e32), min_(-1e32), T_(1.0){}
 DiscreteIntegrator::DiscreteIntegrator(const double T, const double min, const double max, 
   const double a, const double b, const double c)
-  : a_(a), b_(b), c_(c), max_(max), min_(min), lstate_(0), rstate_(0), T_(T) {}
+  : a_(a), b_(b), c_(c), lim_(false), max_(max), min_(min), lstate_(0), rstate_(0), T_(T) {}
 DiscreteIntegrator::~DiscreteIntegrator() {}
 // operators
 // functions
@@ -618,7 +618,44 @@ double DiscreteIntegrator::calculate(double in, int RESET, double init_value)
   }
   else
   {
-    lstate_ = min(max( (a_*in + b_*rstate_)*T_/c_ + lstate_, min_), max_);
+    lstate_ += (a_*in + b_*rstate_)*T_/c_;
+    if ( lstate_<min_ )
+    {
+      lstate_ = min_;
+      lim_ = true;
+    }
+    else if ( lstate_>max_ )
+    {
+      lstate_ = max_;
+      lim_ = true;
+    }
+    else lim_ = false;
+  }
+  rstate_ = in;
+  return (lstate_);
+}
+double DiscreteIntegrator::calculate(double in, double T, int RESET, double init_value)
+{
+  T_ = T;
+  if (RESET > 0)
+  {
+    lstate_ = init_value;
+    rstate_ = 0.0;
+  }
+  else
+  {
+    lstate_ += (a_*in + b_*rstate_)*T_/c_;
+    if ( lstate_<min_ )
+    {
+      lstate_ = min_;
+      lim_ = true;
+    }
+    else if ( lstate_>max_ )
+    {
+      lstate_ = max_;
+      lim_ = true;
+    }
+    else lim_ = false;
   }
   rstate_ = in;
   return (lstate_);
@@ -636,10 +673,10 @@ AB2_Integrator::~AB2_Integrator() {}
 
 // Tustin Integrator updater
 // constructors
-Tustin_Integrator::Tustin_Integrator() : DiscreteIntegrator() {}
-Tustin_Integrator::Tustin_Integrator(const double T, const double min, const double max)
+TustinIntegrator::TustinIntegrator() : DiscreteIntegrator() {}
+TustinIntegrator::TustinIntegrator(const double T, const double min, const double max)
     : DiscreteIntegrator(T, min, max, 1.0, 1.0, 2.0)
 {}
-Tustin_Integrator::~Tustin_Integrator() {}
+TustinIntegrator::~TustinIntegrator() {}
 // operators
 // functions
