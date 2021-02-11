@@ -645,7 +645,7 @@ boolean load(int reset, double T)
     // Pot input
     int raw_pot_trim = analogRead(pot_trim);
     int raw_pot_control = analogRead(pot_control);
-    pcnt_pot = min(max(double(raw_pot_trim)/40.96*1.1, double(raw_pot_control)/40.96*0.66), 100);
+    pcnt_pot = min(max(double(raw_pot_trim)/40.96*1.1, double(raw_pot_control)/40.96*1.6), 100);
 
     // Tach input
     int raw_tach = analogRead(tach_sense);
