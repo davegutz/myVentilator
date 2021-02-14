@@ -1005,3 +1005,23 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
     return ((((float(year-2021)*365.0+float(day))*24.0 + float(hours))*60.0 + float(minutes))*60.0 + \
                         float(seconds));
 }
+
+
+// Is leap year
+int yisleap(int year)
+{
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+
+// Get day of year
+int get_yday(int mon, int day, int year)
+{
+    static const int days[2][13] = {
+        {0, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334},
+        {0, 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335}
+    };
+    int leap = yisleap(year);
+
+    return days[leap][mon] + day;
+}
