@@ -2,6 +2,12 @@ clear
 clear globals
 mclose('all')
 funcprot(0);
+try close(figs); end
+figs=[];
+try
+    xdel(winsid())
+catch
+end
 
 // Is leap year
 function is_leap_yr = yisleap(year)
@@ -157,7 +163,8 @@ for mm = 1:12
         end
     end
 end
-figure;plot(T, IC)
+figs($+1) = figure("Figure_name", 'Sol');plot(T, IC)
+
 
 
 
