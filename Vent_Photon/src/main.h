@@ -176,6 +176,7 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #endif
 #include <OneWire.h>
 #include <DS18.h>
+#include "myInsolation.h"
 
 // Global locals
 char buffer[256];           // Serial print buffer
@@ -236,6 +237,7 @@ DuctTherm* ductEmbMod;      // Duct embedded model
 RoomTherm* room;            // Room model
 RoomTherm* roomEmbMod;      // Room embedded model
 General2_Pole* TaSenseFilt; // Sensor noise and general loop filter
+Insolation* sun_wall;       // Solar insolation effects
 
 #ifdef PHOTON
 byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
@@ -314,6 +316,7 @@ void setup()
   room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
   TaSenseFilt = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.80, 0.0, 120.);
+  sun_wall = new Insolation(SUN_WALL_AREA);
 
   // Begin
   Particle.connect();
@@ -907,23 +910,30 @@ void gotWeatherData(const char *name, const char *data)
   //  <weather>Overcast</weather>
   //  <temperature_string>26.0 F (-3.3 C)</temperature_string>
   //  <temp_f>26.0</temp_f>
+  //  <visibility_mi>10.00</visibility_mi>
   String str          = String(data);
   String locationStr  = tryExtractString(str, "<location>",     "</location>");
   String weatherStr   = tryExtractString(str, "<weather>",      "</weather>");
   String tempStr      = tryExtractString(str, "<temp_f>",       "</temp_f>");
   String windStr      = tryExtractString(str, "<wind_string>",  "</wind_string>");
+  String visStr       = tryExtractString(str, "<visibility_mi>","</visibility_mi>");
 
   if (locationStr != "" && debug>3) {
     if(debug>3) Serial.println("");
     Serial.println("At location: " + locationStr);
   }
-  // if (weatherStr != "" && debug>3) {
-  //   Serial.println("The weather is: " + weatherStr);
-  // }
-  if ( debug>3 ) {
-    Serial.println("The weather is: " + weatherStr);
+
+  // Weather
+  if ( weatherStr!= "" )
+  {
+    sun_wall->getWeather(weatherStr);
+    if ( debug>1 ) Serial.printf("The weather is %d: %s, cover=%7.3f\n",
+        sun_wall->the_weather(), sun_wall->weatherStr().c_str(), sun_wall->cover());
   }
-  if (tempStr != "") {
+
+  // Temperature
+  if ( tempStr != "" )
+  {
     weatherGood = true;
     #ifndef TESTING_WEATHER
       updateweatherhour = Time.hour();  // To check once per hour

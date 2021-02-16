@@ -51,7 +51,7 @@ extern const int8_t debug = 2;         // Level of debug printing (3)
 #define TA_TEMPCAL -5           // Honeywell calibrate temp sense (0), F
 #define HW_HUMCAL -2            // Honeywell calibrate humidity sense (-2), %
 #define ONE_DAY_MILLIS 86400000 // Number of milliseconds in one day (24*60*60*1000)
-#define NOMSET 65               // Nominal setpoint for modeling etc, F
+#define NOMSET 67               // Nominal setpoint for modeling etc, F
 #define MINSET 50               // Minimum setpoint allowed (50), F
 #define MAXSET 75               // Maximum setpoint allowed (75), F
 #define CONTROL_DELAY    2000UL     // Control law wait, ms (5000)
@@ -111,6 +111,7 @@ const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain
 #define M_TRANS_CONV_LOW    400     // mdot threshold to begin transitioning from full qconv to 0
 #define M_TRANS_CONV_HIGH   700     // mdot threshold to end transition to 0 qconv
 
+const double SUN_WALL_AREA = 8*10;  // Area of sunshine room wall impacted by sun, ft^2
 
 
 #endif // CONSTANTS_H_
