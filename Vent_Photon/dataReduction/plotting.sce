@@ -52,7 +52,7 @@ function plot_compare(%zoom, %loc)
 
     figs($+1) = figure("Figure_name", 'Data v Model -'+data_file, "Position", [%loc, %size]);
     subplot(211)
-    overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.Ta_Filt', 'P.D.cmd_scaled'], ['r-', 'g-', 'm-', 'k--', 'b-'], 'Data temp compare', 'time, s', %zoom)
+    overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.Ta_Filt', 'P.D.cmd_scaled', 'P.D.Ta_Obs'], ['r-', 'g-', 'm-', 'k--', 'b-', 'c--'], 'Data temp compare', 'time, s', %zoom)
     subplot(212)
     overplot(['P.D.solar_heat'], ['r-'], 'Data heat', 'time, s', %zoom)
 

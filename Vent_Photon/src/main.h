@@ -644,6 +644,11 @@ boolean load(int reset, double T)
     rawTemp |=Wire.read() >> 2;
     Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + (TA_TEMPCAL); // convert to fahrenheit and calibrate
 
+    // Model
+    duct->update(reset, T, Tp_Sense,  duty);
+    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, solar_heat, set);
+    Ta_Obs = room->Ta();
+
     // MAXIM conversion 1-wire Tp plenum temperature
     if (sensor_plenum.read()) Tp_Sense = sensor_plenum.fahrenheit() + (TP_TEMPCAL);
 
@@ -658,12 +663,16 @@ boolean load(int reset, double T)
   }
   else
   {
+    // Pots
     int raw_pot_control = analogRead(pot_control);
     Tp_Sense = double(raw_pot_control)/4096. * 10 + 70;;
     pcnt_pot = 100.;
+
+    // Model
     duct->update(reset, T, Tp_Sense,  duty);
     room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, solar_heat, set);
-    Ta_Sense = room->Ta();
+    Ta_Obs = room->Ta();
+    Ta_Sense = Ta_Obs;
   }
   Ta_Filt = TaSenseFilt->calculate( Ta_Sense, reset, T);
 
