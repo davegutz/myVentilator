@@ -122,13 +122,13 @@ void RoomTherm::update(const int reset, const double T, const double Tdso, const
     qwo = (Tw_ - OAT) / rsao_;
     
     // Derivatives
-    double Ta_dot = (qai - qao - qwi - qlk_ + qconv_) / dn_tadot_;
+    double Ta_dot = (qai - qao - qwi - qlk_ + qconv_ + otherHeat) / dn_tadot_;
     double Tw_dot = (qwi - qwo) / dn_twdot_;
     
     if ( debug > 3 )
     {
         Serial.printf("%s: reset=%d, mdot=%7.3f, Tdso=%7.3f, OAT=%7.3f,  ----->  Ta=%7.3f, Tw=%7.3f, \n", name_.c_str(), reset, mdot, Tdso, OAT, Ta_, Tw_);
-        Serial.printf("%s: qai=%7.3f, qao=%7.3f, qwi=%7.3f, qwo=%7.3f, Ta_dot=%9.5f, Tw_dot=%9.5f,\n", name_.c_str(), qai, qao, qwi, qwo, Ta_dot, Tw_dot);
+        Serial.printf("%s: qai=%7.3f, qao=%7.3f, qwi=%7.3f, qwo=%7.3f, otherHeat=%7.3f, Ta_dot=%9.5f, Tw_dot=%9.5f,\n", name_.c_str(), qai, qao, qwi, qwo, otherHeat, Ta_dot, Tw_dot);
     }
     
     // Integration (Euler Backward Difference)

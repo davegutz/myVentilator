@@ -231,6 +231,7 @@ bool lastHold = false;      // Web toggled permanent and acknowledged
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
 double lastChangedWebDmd = webDmd;
 double cmd = 0;                  // PWM duty cycle output
+double solar_heat = 0;      // Sun heat on sunshine room wall, Btu/hr
 
 DuctTherm* duct;            // Duct model
 DuctTherm* ductEmbMod;      // Duct embedded model
@@ -316,7 +317,7 @@ void setup()
   room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
   TaSenseFilt = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.80, 0.0, 120.);
-  sun_wall = new Insolation(SUN_WALL_AREA);
+  sun_wall = new Insolation(SUN_WALL_AREA, SUN_WALL_REFLECTIVITY, GMT);
 
   // Begin
   Particle.connect();
@@ -342,7 +343,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,set,Tp_Sense,Ta_Sense,Ta_Filt,hum,pot,OAT,cmd,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,set,Tp_Sense,Ta_Sense,Ta_Filt,hum,pot,OAT,solar,cmd,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -599,6 +600,7 @@ void serial_print_inputs(unsigned long now, double T)
   Serial.print(hum, 1); Serial.print(", ");
   Serial.print(pcnt_pot, 1); Serial.print(", ");
   Serial.print(OAT, 1); Serial.print(", ");
+  Serial.print(solar_heat, 1); Serial.print(", ");
 }
 
 // Normal serial print
@@ -660,7 +662,7 @@ boolean load(int reset, double T)
     Tp_Sense = double(raw_pot_control)/4096. * 10 + 70;;
     pcnt_pot = 100.;
     duct->update(reset, T, Tp_Sense,  duty);
-    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, 0.0, set);
+    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, solar_heat, set);
     Ta_Sense = room->Ta();
   }
   Ta_Filt = TaSenseFilt->calculate( Ta_Sense, reset, T);
@@ -749,8 +751,8 @@ void publish4(void)
 void publish_particle(unsigned long now, bool publishP, double cmd)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%ld, %7.3f,%c", \
-    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty, Ta_Filt,'\0');
+  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%ld, %7.3f, %7.1f, %c", \
+    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty, Ta_Filt, solar_heat,'\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
@@ -923,21 +925,12 @@ void gotWeatherData(const char *name, const char *data)
     Serial.println("At location: " + locationStr);
   }
 
-  // Weather
-  if ( weatherStr!= "" )
-  {
-    sun_wall->getWeather(weatherStr);
-    if ( debug>1 ) Serial.printf("The weather is %d: %s, cover=%7.3f\n",
-        sun_wall->the_weather(), sun_wall->weatherStr().c_str(), sun_wall->cover());
-  }
-
-  // Visibility
-  if ( visStr!= "" )
-  {
-    sun_wall->getVisibility(visStr);
-    if ( debug>1 ) Serial.printf("The visibility is: %7.3f mi, turbidity=%7.3f\n",
-                  sun_wall->visibility(), sun_wall->turbidity());
-  }
+  // Solar
+  if ( weatherStr!= "" )  sun_wall->getWeather(weatherStr);
+  if ( visStr!= "" )      sun_wall->getVisibility(visStr);
+  solar_heat = sun_wall->solar_heat();
+  if ( debug>3 ) Serial.printf("The weather is %d: %s, cover=%7.3f, visibility=%7.3f, solar heat = %7.3f\n",
+        sun_wall->the_weather(), sun_wall->weatherStr().c_str(), sun_wall->cover(), sun_wall->visibility(), solar_heat);
 
   // Temperature
   if ( tempStr != "" )

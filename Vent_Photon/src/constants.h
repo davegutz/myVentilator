@@ -112,6 +112,6 @@ const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain
 #define M_TRANS_CONV_HIGH   700     // mdot threshold to end transition to 0 qconv
 
 const double SUN_WALL_AREA = 8*10;  // Area of sunshine room wall impacted by sun, ft^2
-
+#define SUN_WALL_REFLECTIVITY 0.8   // Fraction of energy rejected by wall
 
 #endif // CONSTANTS_H_

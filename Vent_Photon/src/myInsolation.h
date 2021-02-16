@@ -9,7 +9,7 @@ class Insolation
 {
 public:
   Insolation();
-  Insolation(const double area);
+  Insolation(const double area, const double reflectivity, const float gmt);
   ~Insolation();
   // operators
   // functions
@@ -20,12 +20,16 @@ public:
   double visibility() { return(visibility_); };
   Conditions the_weather() { return(the_weather_); };
   String weatherStr() { return(weatherStr_); };
+  double solar_heat();
 protected:
-  double area_;
-  double cover_;
-  Conditions the_weather_;
-  double turbidity_;
-  double visibility_;
+  double area_;   // Area illuminated, ft^2
+  double cover_;  // Fractional pass of solar from sky coverage
+  float GMT_;     // GMT offset, hours.  + is E.
+  double obscure_;        // Fractional pass of solar from obscurity/turbidity
+  double reflectivity_;   // Fractional reflectivity of energy bounced off wall and rejected (1-ref is used)
+  Conditions the_weather_;// From weather station, enum
+  double turbidity_;      // Obscurity of air, used to scale solar
+  double visibility_;     // Visibility from weather station, miles
   String visStr_;
   String weatherStr_;
 };

@@ -8,6 +8,7 @@ try
     xdel(winsid())
 catch
 end
+exec('overplot.sce');
 
 // Is leap year
 function is_leap_yr = yisleap(year)
@@ -26,7 +27,7 @@ function yday = get_yday(mon, day, year)
 end
 
 
-function [In, I] = sky(Ll, Ls, %phi_r, phiC_r, sigma_r, ref, yy, mm, dd, hr, mn)
+function [In, I, Ia] = sky(Ll, Ls, %phi_r, phiC_r, sigma_r, ref, yy, mm, dd, hr, mn)
 //  Sun angles
 // Best nomenclature in energies-10-00134-v2.pdf:  Maleki, et.al. "Estimation of Hourly, Daily and Monthly Global Solar Radiation on Inclined Surfaces:  Models Re-Visited", 2016
 // A            Apparent Extraterrestrial Solar Insolation, W/m^2
@@ -126,6 +127,9 @@ function [In, I] = sky(Ll, Ls, %phi_r, phiC_r, sigma_r, ref, yy, mm, dd, hr, mn)
     I.IDC = C*I.IB*(1+cos(sigma_r))/2;
     I.IRC = ref*I.IB*(sin(BetaS_r)+C)*(1-cos(sigma_r))/2;  
     I.IC = I.IBC + I.IDC + I.IRC;  
+
+    // Approximate model
+    Ia.IC = 880*max( cos(1.2*(12-I.DT)*%pi/12) * (0.75+0.25*cos((6-mm)*%pi/6)), 0);
 endfunction
 
 
@@ -150,20 +154,28 @@ yy = right_now(1); mm = right_now(2); dd = right_now(6);
 hr = right_now(7);mn = right_now(8);
 CT = hr + mn/60;
 //[In, I] = sky(Ll, Ls, phi_r, phiC_r, sigma_r, ref, yy, mm, dd, hr, mn);
-[In, I] = sky(Ll, Ls, phi_r, phiC_r, sigma_r, ref, 2021, 2, 15, 9, 22);
+[In, I, Ia] = sky(Ll, Ls, phi_r, phiC_r, sigma_r, ref, 2021, 2, 15, 9, 22);
 
 T = [];
 IC = [];
+ICa = [];
 for mm = 1:12
-    for hr = 1:24,
-        for mn = 1:5:60;
-            [In, I] = sky(Ll, Ls, phi_r, phiC_r, sigma_r, ref, 2021, mm, 15, hr, mn);
+    for hr = 0:23,
+//    for hr = 12:12,
+        for mn = 0:5:55;
+//        for mn = 1:1;
+            [In, I, Ia] = sky(Ll, Ls, phi_r, phiC_r, sigma_r, ref, 2021, mm, 21, hr, mn);
             T($+1) = I.DT;
+//            T($+1) = mm;
             IC($+1) = I.IC;
+            ICa($+1) = Ia.IC;
         end
     end
 end
-figs($+1) = figure("Figure_name", 'Sol');plot(T, IC)
+P.IC = struct('time', T, 'values', IC);
+P.ICa = struct('time', T, 'values', ICa);
+
+figs($+1) = figure("Figure_name", 'Sol');  overplot(['P.IC', 'P.ICa'], ['b-', 'r-'], 'Ins', 'time, s')
 
 
 
