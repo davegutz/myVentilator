@@ -931,6 +931,14 @@ void gotWeatherData(const char *name, const char *data)
         sun_wall->the_weather(), sun_wall->weatherStr().c_str(), sun_wall->cover());
   }
 
+  // Visibility
+  if ( visStr!= "" )
+  {
+    sun_wall->getVisibility(visStr);
+    if ( debug>1 ) Serial.printf("The visibility is: %7.3f mi, turbidity=%7.3f\n",
+                  sun_wall->visibility(), sun_wall->turbidity());
+  }
+
   // Temperature
   if ( tempStr != "" )
   {

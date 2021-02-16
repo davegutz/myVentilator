@@ -39,13 +39,30 @@ extern int8_t debug;
 
 // Constructors
 Insolation::Insolation()
-    : area_(0), cover_(0), the_weather_(FAIR), weatherStr_("")
+    : area_(0), cover_(0), the_weather_(FAIR), turbidity_(0), visibility_(0), visStr_(""), weatherStr_("")
 {}
 Insolation::Insolation(const double area)
-    : area_(area), cover_(0), the_weather_(FAIR), weatherStr_("")
+    : area_(area), cover_(0), the_weather_(FAIR), turbidity_(0), visibility_(0), visStr_(""), weatherStr_("")
 {}
 
 // Functions
+// Visibility
+void Insolation::getVisibility( const String visStr )
+{
+  if ( visStr!= "" )
+  {
+    visStr_ = visStr;
+    visibility_ = atof(visStr);
+  }
+  if ( visibility_>8.0 ) turbidity_ = 2.2;
+  else if ( visibility_>4.0 ) turbidity_ = 4;
+  else if ( visibility_>2.0 ) turbidity_ = 8;
+  else if ( visibility_>1.2 ) turbidity_ = 16;
+  else if ( visibility_>0.8 ) turbidity_ = 32;
+  else if ( visibility_>0.5 ) turbidity_ = 64;
+  else turbidity_ = 128;
+}
+
 // Weather
 void Insolation::getWeather( const String weatherStr )
 {
@@ -69,7 +86,6 @@ void Insolation::getWeather( const String weatherStr )
     else if ( weatherStr=="Snow" ) the_weather_ = SNOW;
     else if ( weatherStr=="Heavy Snow" ) the_weather_ = HEAVY_SNOW;
     else the_weather_ = UNKNOWN;
-    if ( debug>1 ) Serial.printf("The weather is %d: %s\n", the_weather_, weatherStr.c_str());
   }
   switch ( the_weather_ )
   {

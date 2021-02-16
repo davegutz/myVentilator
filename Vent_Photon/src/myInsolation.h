@@ -14,13 +14,19 @@ public:
   // operators
   // functions
   double cover() { return(cover_); };
+  void getVisibility(const String visStr);
   void getWeather(const String weatherStr);
+  double turbidity() { return(turbidity_); };
+  double visibility() { return(visibility_); };
   Conditions the_weather() { return(the_weather_); };
   String weatherStr() { return(weatherStr_); };
 protected:
   double area_;
   double cover_;
   Conditions the_weather_;
+  double turbidity_;
+  double visibility_;
+  String visStr_;
   String weatherStr_;
 };
 
