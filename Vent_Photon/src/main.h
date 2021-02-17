@@ -177,10 +177,11 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #include <OneWire.h>
 #include <DS18.h>
 #include "myInsolation.h"
+#include "mySync.h"
 
 // Global locals
 char buffer[256];           // Serial print buffer
-int hum = 68;               // Relative humidity integer value, %
+int hum = 99;               // Relative humidity integer value, %
 int I2C_Status = 0;         // Bus status
 double Ta_Sense = NOMSET;   // Sensed ambient room temp, F
 double Ta_Filt = NOMSET;    // Filtered, sensed ambient room temp, F
@@ -195,16 +196,12 @@ double pcnt_tach = 0;       // Tach read, % of 0-10v
 uint32_t duty = 0;          // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
 // Global locals for Blynk TODO:  simplify
 String hmString = "00:00";  // time, hh:mm
-bool call = false;          // Heat demand to relay control
 bool held = false;          // doomed parameter
-double callCount;           // Floating point of bool call for calculation
-double set = 65.0;          // Selected sched, F
+double set = NOMSET;        // Selected sched, F
 double tempComp;            // Sensed compensated temp, F
 int potDmd = 0;             // Pot value, deg F
-int schdDmd = 62;           // Sched raw value, F
 double OAT = 30;            // Outside air temperature, F
 double Ta_Obs = 0;          // Modeled air temp, F
-double rejectHeat = 0.0;    // Adjustment to embedded  model to match sensor, F/sec
 #ifndef NO_PARTICLE
   String statStr("WAIT..."); // Status string
 #endif
@@ -235,7 +232,6 @@ double cont_o = 0;          // Observer total control output, %
 double err_o = 0;           // Observer control error, F
 double cmd_o = 0;           // Observer PWM duty cycle output
 
-
 bool lastHold = false;      // Web toggled permanent and acknowledged
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
 double lastChangedWebDmd = webDmd;
@@ -250,12 +246,12 @@ General2_Pole* TaSenseFilt; // Sensor noise and general loop filter
 Insolation* sun_wall;       // Solar insolation effects
 
 #ifdef PHOTON
-byte pin_1_wire = D6;       // 1-wire Plenum temperature sensor
-pin_t pwm_pin = D2;         // Power the PWM transistor base via 300k resistor
-byte status_led = D7;       // On-board led
-byte tach_sense = A1;       // Sense ECMF speed
-byte pot_trim = A2;         // Trim Pot
-byte pot_control = A3;      // Control Pot
+  byte pin_1_wire = D6;     // 1-wire Plenum temperature sensor
+  pin_t pwm_pin = D2;       // Power the PWM transistor base via 300k resistor
+  byte status_led = D7;     // On-board led
+  byte tach_sense = A1;     // Sense ECMF speed
+  byte pot_trim = A2;       // Trim Pot
+  byte pot_control = A3;    // Control Pot
 #endif
 
 // Utilities
@@ -283,7 +279,7 @@ void setup()
   // Serial
   Serial.begin(115200); // initialize serial communication at 115200 bits per second:
   Serial.flush();
-  delay(1000);  // Ensures a clean display on Arduino Serial startup on CoolTerm
+  delay(1000);          // Ensures a clean display on Arduino Serial startup on CoolTerm
 
   // Peripherals
   if ( !bare )
@@ -366,44 +362,38 @@ void loop()
   unsigned long currentTime;                // Time result
   static unsigned long now = millis();      // Keep track of time
   static unsigned long past = millis();     // Keep track of time
-  static boolean toggle = false;            // Generate heartbeat
   static int reset = 1;                     // Dynamic reset
-  // static boolean was_testing = true;        // Memory of testing, used to perform a logic reset on transition
   double T = 0;                             // Present update time, s
-  boolean testing = true;                   // Initial startup is calibration mode to 60 bpm, 99% spo2, 2% PI
-  const int bare_wait = int(1);        // To simulate peripherals sample time
-  bool readTp;             // Special sequence to read Tp affected by PWM noise with duty>0, T/F
-  static bool dwellTp;     // Special hold to read Tp T/F
-  bool control;            // Control sequence, T/F
-  bool display;            // LED display sequence, T/F
-  bool publishP;           // Particle publish, T/F
-  bool query;              // Query schedule and OAT, T/F
-  bool read;               // Read, T/F
-  bool serial;             // Serial print, T/F
-  bool checkPot = false;   // Read the POT, T/F
-  static unsigned long lastReadTp   = 0UL; // Last readTp time, ms
-  static unsigned long lastDwellTp  = 0UL; // Last dwellTp time, ms
-  static unsigned long lastControl  = 0UL; // Last control law time, ms
-  static unsigned long lastDisplay  = 0UL; // Las display time, ms
-  static unsigned long lastPublishP = 0UL; // Last publish time, ms
-  static unsigned long lastQuery    = 0UL; // Last read time, ms
-  static unsigned long lastRead     = 0UL; // Last read time, ms
-  static unsigned long lastSerial   = 0UL; // Last Serial print time, ms
-  static double last_Tp_Sense = NOMSET;   // For testing of change in value for shutdown function
+  const int bare_wait = int(1);             // To simulate peripherals sample time
+  bool checkPot = false;                    // Read the POT, T/F
+  static double last_Tp_Sense = NOMSET;     // For testing of change in value for shutdown function
+  // Synchronization
+  bool publishP;                            // Particle publish, T/F
+  static Sync *publishParticle = new Sync(PUBLISH_PARTICLE_DELAY);
+  bool readTp;                              // Special sequence to read Tp affected by PWM noise with duty>0, T/F
+  static Sync *readPlenum = new Sync(READ_TP_DELAY);
+  static bool dwellTp;                      // Special hold to read Tp T/F
+  static Sync *dwellPlenum = new Sync(DWELL_TP_DELAY);
+  bool read;                                // Read, T/F
+  static Sync *readSensors = new Sync(READ_DELAY);
+  bool query;                               // Query schedule and OAT, T/F
+  static Sync *queryWeb = new Sync(QUERY_DELAY);
+  bool serial;                              // Serial print, T/F
+  static Sync *serialDebug = new Sync(SERIAL_DELAY);
+  bool control;                             // Control sequence, T/F
+  static Sync *controlFrame = new Sync(CONTROL_DELAY);
+  double updateTime = double(CONTROL_DELAY)/1000.0;
 
-  // Blynk  TODO:   these go inside loop?
-  Blynk.run();
-  blynk_timer_1.run(); blynk_timer_2.run(); blynk_timer_3.run(); blynk_timer_4.run(); 
+  // Top of loop
+  // Start Blynk
+  Blynk.run(); blynk_timer_1.run(); blynk_timer_2.run(); blynk_timer_3.run(); blynk_timer_4.run(); 
+
+  // Request time synchronization from the Particle Cloud once per day
   if (millis() - lastSync > ONE_DAY_MILLIS)
   {
-    // Request time synchronization from the Particle Cloud once per day
     Particle.syncTime();
     lastSync = millis();
   }
-
-  // Particle
-  publishP  = ((now-lastPublishP) >= PUBLISH_PARTICLE_DELAY);
-  if ( publishP ) lastPublishP  = now;
 
   // Read sensors
   // Stop every READ_TP_DELAY to read Tp, because it is corrupted by noise when running.
@@ -412,48 +402,34 @@ void loop()
   {
     if ( debug>1 ) Serial.printf("TP:   Tp_Sense=%7.3f, last_Tp_Sense=%7.3f\n", Tp_Sense, last_Tp_Sense);
     last_Tp_Sense = Tp_Sense;
-    lastReadTp = now;
+    readPlenum->update(now, true);
   }
-  readTp  = ( ((now-lastReadTp)>=READ_TP_DELAY)  || reset>0 );
-  if ( readTp   ) lastReadTp   = now;
-  dwellTp = ( (dwellTp && ((now-lastDwellTp)<DWELL_TP_DELAY)) || readTp );
-  if ( !dwellTp ) lastDwellTp   = now;
-  double deltaR = double(now - lastRead)/1000.;
-  read    = ((now-lastRead) >= READ_DELAY || reset>0) && !publishP;
-  if ( read     ) lastRead      = now;
-
-  // Query Web
-  query   = reset || (((now-lastQuery)>= QUERY_DELAY) && !read);
-  if ( query    ) lastQuery     = now;
-
-  // LCD display if used
-  display   = ((now-lastDisplay) >= DISPLAY_DELAY) && !query;
-  if ( display ) lastDisplay    = now;
-
-  // Serial debug if used
-  serial   = ((now-lastSerial) >= SERIAL_DELAY) && !query;
-  if ( serial ) lastSerial    = now;
+  publishP = publishParticle->update(now, false);
+  readTp = readPlenum->update(now, reset);
+  dwellTp = dwellPlenum->updateN(now, false, readTp);
+  read = readSensors->update(now, reset, !publishP);
+  double deltaR = double(readSensors->updateTime())/1000.0;
+  query = queryWeb->update(reset, now, !read);
+  serial = serialDebug->update(false, now, !query);
 
   // Control Demands
   past = now;
   now = millis();
   T = (now - past)/1e3;
-  unsigned long deltaT = now - lastControl;
-  //  control = (deltaT>=CONTROL_DELAY) && !display;
-  control = (deltaT>=CONTROL_DELAY) || reset;
+  control = controlFrame->update(reset, now, true);
   if ( control  )
   {
     char  tempStr[23];  // time, year-mo-dyThh:mm:ss iso format, no time zone
     controlTime = decimalTime(&currentTime, tempStr);
     hmString    = String(tempStr);
-    updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
-    lastControl   = now;
+    updateTime = float(controlFrame->updateTime())/1000.0 + float(numTimeouts)/100.0;
   }
   delay(5);
   if ( bare )
   {
     delay ( bare_wait );
   }
+
   // Scheduling logic
   // 1.  Pot has highest priority
   //     a.  Pot will not hold past next schedule change
@@ -471,7 +447,6 @@ void loop()
 
   // Initialize scheduling logic - don't change on boot
   static int lastChangedPot = potValue;
-  // static int lastChangedSched = schdDmd;
   // If user has adjusted the potentiometer (overrides schedule until next schedule change)
   // Use potValue for checking because it has more resolution than the integer potDmd
   if ( fabsf(potValue-lastChangedPot)>16 && checkPot )  // adjust from 64 because my range is 1214 not 4095
@@ -515,12 +490,12 @@ void loop()
   }
 
   #ifndef NO_WEATHER_HOOK
-    // Get OAT webhook
+    // Get OAT webhook and time it 
     if ( query    )
     {
-      unsigned long           then = millis();     // Keep track of time
+      unsigned long then = millis();
       getWeather();
-      unsigned long           now = millis();     // Keep track of time
+      unsigned long now = millis();
       if ( debug>0 ) Serial.printf("weather update=%f\n", float(now-then)/1000.0);
       if ( weatherGood )
       {
@@ -560,11 +535,10 @@ void loop()
     // Latch prevents cycling of fan as Tp cools on startup of fan.
     if ( Tp_Sense>74.0 || ((Tp_Sense>73.0) & (duty>0)) ) duty = min(uint32_t(cmd*255.0/100.0), uint32_t(255));
     else duty = 0;
-    if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>23 ) duty = 0;
+    if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>=23 ) duty = 0;
     if ( dwellTp ) duty = 0;
+    if ( Tp_Sense>110.0 ) duty = 0;  // Fire shutoff
     pwm_write(duty);
-
-    toggle = !toggle;
     digitalWrite(status_led, HIGH);
   }
 
@@ -572,15 +546,8 @@ void loop()
   if ( read )
   {
     if ( debug>2 ) Serial.printf("Read update=%7.3f\n", deltaR);
-    testing = load(reset, deltaR);
-    if ( !bare )
-    {
-      testing = testing;
-    }
-    else
-    {
-      delay(41); // Usual I2C time
-    }
+    load(reset, deltaR);
+    if ( bare ) delay(41);  // Usual I2C time
   }
 
   // Publish to Particle cloud if desired (different than Blynk)
@@ -754,7 +721,7 @@ void publish3(void)
 {
   #ifndef NO_BLYNK
     if (debug>4) Serial.printf("Blynk write3\n");
-    Blynk.virtualWrite(V12, schdDmd);
+    Blynk.virtualWrite(V12, solar_heat);
     Blynk.virtualWrite(V13, Ta_Sense);
     Blynk.virtualWrite(V14, I2C_Status);
     Blynk.virtualWrite(V15, hmString);
@@ -771,7 +738,7 @@ void publish4(void)
     Blynk.virtualWrite(V17, reco);
     Blynk.virtualWrite(V18, OAT);
     Blynk.virtualWrite(V19, Ta_Obs);
-    Blynk.virtualWrite(V20, rejectHeat*200);
+    Blynk.virtualWrite(V20, heat_o);
   #endif
 }
 
@@ -782,8 +749,9 @@ void publish_particle(unsigned long now, bool publishP, double cmd)
   char  tmpsStr[STAT_RESERVE];
   sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
   %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
-    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime,
+    unit.c_str(), hmString.c_str(), controlTime, set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime,
     OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty, Ta_Filt, solar_heat, heat_o, '\0');
+  
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
@@ -811,7 +779,7 @@ void publish_particle(unsigned long now, bool publishP, double cmd)
 }
 
 
-// Process a new temperature setting.   Display and save it.
+// Process a new temperature setting
 int setSaveDisplayTemp(double t)
 {
     set = t;
@@ -819,8 +787,6 @@ int setSaveDisplayTemp(double t)
     switch(controlMode)
     {
         case POT:   
-           //displayTemperature(set);
-           //displayCount=0;
            break;
         case WEB:   break;
         case SCHD:  break;
