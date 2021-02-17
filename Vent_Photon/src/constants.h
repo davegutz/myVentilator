@@ -61,7 +61,7 @@ extern const int8_t debug = 2;         // Level of debug printing (3)
 #define QUERY_DELAY      900000UL   // Web query wait (15000, 100 for stress test), ms (900000UL)
 #define DISPLAY_DELAY    300UL      // Serial display scheduling frame time, ms (300UL)
 #define SERIAL_DELAY     5000UL     // Serial print interval (5000UL)
-#define STAT_RESERVE     150        // Space to reserve for status string publish (150)
+#define STAT_RESERVE     200        // Space to reserve for status string publish (150)
 #define HYST             0.01       // Heat control law hysteresis (0.75), F
 #define WEATHER_WAIT     900UL      // Time to wait for weather webhook, ms (900UL)
 #define GMT              -5         // Enter time different to zulu (does not respect DST)

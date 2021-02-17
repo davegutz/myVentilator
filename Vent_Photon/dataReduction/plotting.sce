@@ -54,7 +54,7 @@ function plot_compare(%zoom, %loc)
     subplot(211)
     overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.Ta_Filt', 'P.D.cmd_scaled', 'P.D.Ta_Obs'], ['r-', 'g-', 'm-', 'k--', 'b-', 'c--'], 'Data temp compare', 'time, s', %zoom)
     subplot(212)
-    overplot(['P.D.solar_heat'], ['r-'], 'Data heat', 'time, s', %zoom)
+    overplot(['P.D.solar_heat', 'P.D.heat_o'], ['r-', 'b-'], 'Data heat', 'time, s', %zoom)
 
 endfunction
 
@@ -85,6 +85,7 @@ function plot_all(%zoom, %loc)
     P.D.cmd_scaled = struct('time', D.time, 'values', D.cmd_scaled);
     P.D.Ta_Filt = struct('time', D.time, 'values', D.Ta_Filt);
     P.D.solar_heat = struct('time', D.time, 'values', D.solar_heat);
+    P.D.heat_o = struct('time', D.time, 'values', D.heat_o);
 
     P.B.set = struct('time', B.time, 'values', B.set);
     P.B.Tp_Sense = struct('time', B.time, 'values', B.Tp_Sense);
@@ -102,6 +103,7 @@ function plot_all(%zoom, %loc)
     P.B.cmd_scaled = struct('time', B.time, 'values', B.cmd_scaled);
     P.B.Ta_Filt = struct('time', D.time, 'values', B.Ta_Filt);
     P.B.solar_heat = struct('time', D.time, 'values', B.solar_heat);
+    P.B.heat_o = struct('time', D.time, 'values', B.heat_o);
 
     plot_data(%zoom, %loc + [30 30]);
     plot_compare(%zoom, %loc + [60 60]);
@@ -287,6 +289,7 @@ function plot_all_model(%zoom, %loc)
     P.B.prop =  struct('time', B.time, 'values', B.prop);
     P.B.Ta_Filt = struct('time', B.time, 'values', B.Ta_Filt);
     P.B.solar_heat = struct('time', B.time, 'values', B.solar_heat);
+    P.B.heat_o = struct('time', B.time, 'values', B.heat_o);
 
     P.C.integ =  struct('time', B.time, 'values', C.integ);
     P.C.prop =  struct('time', B.time, 'values', C.prop);

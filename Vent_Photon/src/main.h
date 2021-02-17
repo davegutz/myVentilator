@@ -221,22 +221,25 @@ const int EEPROM_ADDR = 1;  // Flash address
 #endif
 double tempf;               // webhook OAT, deg F
 double integ = 0;           // Control integrator output, %
-double integ_o = 0;         // Observer control integrator output, %
-double heat_o = 0;          // Observer heat modification, Btu/hr
 double G = 0.150;           // Control gain, r/s = %/F (0.030)
 double tau = 600;           // Control lead, s  (600)
 double DB = 0.1;            // Half deadband width, deg F (0.5)
 double prop = 0;            // Control proportional output, %
-double prop_o = 0;          // Observer control proportional output, %
 double cont = 0;            // Total control output, %
-double cont_o = 0;          // Observer total control output, %
 double err = 0;             // Control error, F
+// Observer control
+double integ_o = 0;         // Observer control integrator output, %
+double heat_o = 0;          // Observer heat modification, Btu/hr
+double prop_o = 0;          // Observer control proportional output, %
+double cont_o = 0;          // Observer total control output, %
 double err_o = 0;           // Observer control error, F
+double cmd_o = 0;           // Observer PWM duty cycle output
+
+
 bool lastHold = false;      // Web toggled permanent and acknowledged
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
 double lastChangedWebDmd = webDmd;
-double cmd = 0;             // PWM duty cycle output
-double cmd_o = 0;           // Observer PWM duty cycle output
+double cmd = 0;                  // PWM duty cycle output
 double solar_heat = 0;      // Sun heat on sunshine room wall, Btu/hr
 
 DuctTherm* duct;            // Duct model
@@ -349,7 +352,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,set,Tp_Sense,Ta_Sense,Ta_Filt,hum,pot,OAT,solar,cmd,duty,")); Serial.println("");
+    Serial.print(F("flag,time_ms,controlTime,T,I2C_Status,set,Tp_Sense,Ta_Sense,Ta_Filt,hum,pot,OAT,solar,heat_o,cmd,duty,")); Serial.println("");
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};
@@ -532,23 +535,26 @@ void loop()
   {
     if ( !dwellTp )  // Freeze control if dwellTp
     {
+      // Main CLAW
       err = set - Ta_Filt;
       double err_comp = DEAD(err, DB)*G;
-      prop = max(min(err_comp * tau, 20), -20);
+      prop = max(min(err_comp * tau, 20), -20);   // TODO the prop limits do nothing
       integ = max(min(integ + updateTime*err_comp, pcnt_pot-prop), -prop);
       if ( (reset>0) & bare ) integ = 100;
       cont = max(min(integ+prop, pcnt_pot), 0);
 
+      // Observer CLAW
       err_o = set - Ta_Sense;
       double err_comp_o = err_o*G;
       prop_o = max(min(err_comp_o * tau, 20), -20);
-      integ_o = max(min(integ_o + updateTime*err_comp_o, pcnt_pot - prop), -prop);
+      integ_o = max(min(integ_o + updateTime*err_comp_o, 100 - prop_o), -prop_o);
       if ( (reset>0) & bare ) integ_o = 100;
-      cont_o = max(min(integ_o + prop_o, pcnt_pot), 0);
+      cont_o = max(min(integ_o + prop_o, 100), 0);
     }
-    cmd = max(min(min(pcnt_pot, cont), 100), 0);
-    cmd_o = max(min(min(pcnt_pot, cont_o), 100), 0);
-    heat_o = cmd_o * M_GAIN_O;
+    cmd = max(min(min(pcnt_pot, cont),100.0), 0);
+    cmd_o = max(min(min(100, cont_o), 100), 0);
+    if ( !bare ) heat_o = cmd_o * M_GAIN_O;
+    else heat_o = 0;
 
     // Latch on fan enable.   If temperature high, turn on.  If low, turn off.   If in-between and already on, leave on.
     // Latch prevents cycling of fan as Tp cools on startup of fan.
@@ -774,9 +780,10 @@ void publish4(void)
 void publish_particle(unsigned long now, bool publishP, double cmd)
 {
   char  tmpsStr[STAT_RESERVE];
-  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,%7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
-    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime, OAT, Ta_Obs, err, prop, integ,
-    cont, pcnt_pot, duty, Ta_Filt, solar_heat, heat_o,'\0');
+  sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
+  %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
+    unit.c_str(), hmString.c_str(), controlTime, callCount*1+set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime,
+    OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty, Ta_Filt, solar_heat, heat_o, '\0');
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
   #endif
