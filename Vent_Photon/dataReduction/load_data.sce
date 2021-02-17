@@ -64,6 +64,8 @@ function [D, TD, first] = load_data(data_t, data_d)
     D.pcnt_pot = data_d(:, 14);
     D.duty = data_d(:, 15)/2.55;
     D.Ta_Filt = data_d(:, 16);
+    D.solar_heat = data_d(:, 17);
+    D.heat_o = data_d(:, 18);
     D.cmd_scaled = D.cmd/100*20+60;
     first = 1;
 endfunction
@@ -86,4 +88,6 @@ function B = load_buffer(D, first, last);
     B.duty = D.duty(first:last);
     B.cmd_scaled = D.cmd_scaled(first:last);
     B.Ta_Filt = D.Ta_Filt(first:last);
+    B.solar_heat = D.solar_heat(first:last);
+    B.heat_o = D.heat_o(first:last);
 endfunction

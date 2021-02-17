@@ -75,6 +75,6 @@ if plotting then
     end
 end
 
-mclose('all')
+mclose('all');
 
-export_figs(figs, run_name)
+export_figs(figs, run_name);
