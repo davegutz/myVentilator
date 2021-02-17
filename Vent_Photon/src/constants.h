@@ -110,7 +110,7 @@ const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain
 #define M_AQ_2          -0.005153   // cmd^2 coefficient flow polynomial cmd-->cfm
 #define M_TRANS_CONV_LOW    400     // mdot threshold to begin transitioning from full qconv to 0
 #define M_TRANS_CONV_HIGH   700     // mdot threshold to end transition to 0 qconv
-#define M_GAIN_O        2           // Change duty into heat for model observer control  btu/hr/duty
+#define M_GAIN_O        6           // Change duty into heat for model observer control  btu/hr/duty
 
 const double SUN_WALL_AREA = 8*10;  // Area of sunshine room wall impacted by sun, ft^2
 #define SUN_WALL_REFLECTIVITY 0.8   // Fraction of energy rejected by wall

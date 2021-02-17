@@ -544,15 +544,15 @@ void loop()
       cont = max(min(integ+prop, pcnt_pot), 0);
 
       // Observer CLAW
-      err_o = set - Ta_Sense;
+      err_o = Ta_Filt - Ta_Obs;
       double err_comp_o = err_o*G;
       prop_o = max(min(err_comp_o * tau, 20), -20);
-      integ_o = max(min(integ_o + updateTime*err_comp_o, 100 - prop_o), -prop_o);
+      integ_o = max(min(integ_o + updateTime*err_comp_o, 100-prop_o), -100-prop_o);
       if ( (reset>0) & bare ) integ_o = 100;
-      cont_o = max(min(integ_o + prop_o, 100), 0);
+      cont_o = max(min(integ_o + prop_o, 100), -100);
     }
     cmd = max(min(min(pcnt_pot, cont),100.0), 0);
-    cmd_o = max(min(min(100, cont_o), 100), 0);
+    cmd_o = max(min(min(100, cont_o), 100), -100);
     if ( !bare ) heat_o = cmd_o * M_GAIN_O;
     else heat_o = 0;
 
