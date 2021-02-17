@@ -3,7 +3,6 @@
     "C_Cpp.default.configurationProvider": "particle.particle-vscode-core",
     "cortex-debug.openocdPath": "${command:particle.getDebuggerOpenocdPath}",
     "files.associations": {
-        "*.ino": "cpp"
         "*.ino": "cpp",
         "cmath": "cpp",
         "cstddef": "cpp",
@@ -32,5 +31,5 @@
     },
     "particle.firmwareVersion": "3.0.0-beta.1",
     "particle.targetPlatform": "photon",
-    "particle.targetDevice": "proto"
+    "particle.targetDevice": "vent"
 }
