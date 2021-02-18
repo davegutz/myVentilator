@@ -32,7 +32,6 @@
 #undef PHOTON
 #endif
 
-extern const int8_t debug = 2;         // Level of debug printing (3)
 
 // Disable flags if needed for debugging, usually commented
 //#define NO_WEATHER_HOOK       // Turn off webhook weather lookup.  Will get default OAT = 30F

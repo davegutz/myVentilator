@@ -99,4 +99,8 @@ struct Control
   }
 };
 
+
+void publish_particle(unsigned long now);
+void serial_print_inputs(unsigned long now, double T);
+
 #endif

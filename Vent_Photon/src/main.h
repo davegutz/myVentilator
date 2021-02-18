@@ -71,6 +71,8 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #include "mySync.h"
 #include "mySubs.h"
 
+extern const int8_t debug = 2;         // Level of debug printing (3)
+
 // Global locals
 char buffer[256];           // Serial print buffer
 double updateTime = 0.0; 
@@ -117,13 +119,11 @@ PID *pid_o;                 // Observer PID
 #endif
 
 // Utilities
-void serial_print_inputs(unsigned long now, double T);
 void serial_print(double cmd);
 uint32_t pwm_write(uint32_t duty);
 boolean load(int reset, double T, Sensors *sen);
 DS18 sensor_plenum(pin_1_wire);
 void publish1(void); void publish2(void); void publish3(void); void publish4(void);
-void publish_particle(unsigned long now);
 int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(double t);
@@ -430,7 +430,7 @@ void loop()
   // to get a curl command to run
   if ( (debug>0) & publishP )
   {
-    if ( debug>3 ) Serial.println(F("publish"));
+    if ( debug>2 ) Serial.println(F("publish"));
     publish_particle(now);
   }
 
@@ -446,24 +446,6 @@ void loop()
 
 } // loop
 
-
-// Inputs serial print
-void serial_print_inputs(unsigned long now, double T)
-{
-  Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(", ");
-  Serial.print(controlTime, 3); Serial.print(", ");
-  Serial.print(T, 6); Serial.print(", ");  
-  Serial.print(sen->I2C_status, DEC); Serial.print(", ");
-  Serial.print(con->set, 1); Serial.print(", ");
-  Serial.print(sen->Tp, 1); Serial.print(", ");
-  Serial.print(sen->Ta, 1); Serial.print(", ");
-  Serial.print(sen->Ta_filt, 1); Serial.print(", ");
-  Serial.print(sen->hum, 1); Serial.print(", ");
-  Serial.print(sen->pcnt_pot, 1); Serial.print(", ");
-  Serial.print(sen->OAT, 1); Serial.print(", ");
-  Serial.print(sun_wall->solar_heat(), 1); Serial.print(", ");
-  Serial.print(con->heat_o, 1); Serial.print(", ");
-}
 
 // Normal serial print
 void serial_print(double cmd)
@@ -556,6 +538,7 @@ boolean load(int reset, double T, Sensors *sen)
   return ( !done_testing );
 }
 
+// Write to the D/A converter
 uint32_t pwm_write(uint32_t duty)
 {
     analogWrite(pwm_pin, duty, pwm_frequency);
@@ -617,35 +600,6 @@ void publish4(void)
   #endif
 }
 
-
-// Check connection and publish Particle
-void publish_particle(unsigned long now)
-{
-  sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
-  %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
-    unit.c_str(), hmString.c_str(), controlTime, con->set-HYST, sen->Tp, sen->Ta, con->cmd, con->T,
-    sen->OAT, sen->Ta_obs, err, prop, integ, cont, sen->pcnt_pot, con->duty, sen->Ta_filt, sun_wall->solar_heat(), con->heat_o, '\0');
-  
-  if ( debug>2 ) Serial.println(buffer);
-  if ( Particle.connected() )
-  {
-    if ( debug>2 ) Serial.printf("Particle write\n");
-    unsigned nowSec = now/1000UL;
-    unsigned sec = nowSec%60;
-    unsigned min = (nowSec%3600)/60;
-    unsigned hours = (nowSec%86400)/3600;
-    char publishString[40];     // For uptime recording
-    sprintf(publishString,"%u:%u:%u",hours,min,sec);
-    Particle.publish("Uptime",publishString);
-    Particle.publish("stat", buffer);
-  }
-  else
-  {
-    if ( debug>1 ) Serial.printf("Particle not connected....connecting\n");
-    Particle.connect();
-    numTimeouts++;
-  }
-}
 
 
 // Process a new temperature setting
@@ -880,24 +834,4 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
     sprintf(tempStr, "%4u-%02u-%02uT%02u:%02u:%02u", int(year), month, day, hours, minutes, seconds);
     return ((((float(year-2021)*365.0+float(day))*24.0 + float(hours))*60.0 + float(minutes))*60.0 + \
                         float(seconds));
-}
-
-
-// Is leap year
-int yisleap(int year)
-{
-    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-}
-
-
-// Get day of year
-int get_yday(int mon, int day, int year)
-{
-    static const int days[2][13] = {
-        {0, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334},
-        {0, 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335}
-    };
-    int leap = yisleap(year);
-
-    return days[leap][mon] + day;
 }
