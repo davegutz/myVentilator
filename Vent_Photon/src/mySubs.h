@@ -25,24 +25,33 @@
 #ifndef _MY_SUBS_H
 #define _MY_SUBS_H
 
+enum Mode {POT, WEB, AUTO, SCHD}; // To keep track of mode
+
 // Sensors
 struct Sensors
 {
-  double Ta;
-  double Tp;
-  double Ta_obs;
-  double Ta_filt;
-  double OAT;
+  double Ta;          // Sensed ambient room temp, F
+  double Tp;          // Sensed plenum temp, F
+  double Ta_obs;      // Modeled air temp, F
+  double Ta_filt;     // Filtered, sensed ambient room temp, F
+  double OAT;         // Outside air temperature, F
   int I2C_status;
-  double pcnt_pot;
-  double pcnt_tach;
-  double last_Tp;
+  double pcnt_pot;    // Potentiometer read, % of 0-10v
+  double pcnt_tach;   // Tach read, % of 0-10v
+  double last_Tp;     // For testing of change in value for shutdown function
   double T;
   double potValue;
+  double hum;
+  bool webHold;
+  bool lastHold;      // Web toggled permanent and acknowledged
+  bool held;          // Status of webHold command in Photon
+  int potDmd;         // Pot value, deg F
+  Mode controlMode;   // Present control mode
   Sensors(void) {}
   Sensors(double Ta, double Tp, double Ta_obs, double Ta_filt,
     double OAT, int I2C_status, double pcnt_pot, double pcnt_tach, double last_Tp,
-    double T, double potValue)
+    double T, double potValue, double hum, bool webHold, bool lastHold, bool held,
+    int potDmd, Mode controlMode)
   {
     this->Ta = Ta;
     this->Tp = Tp;
@@ -55,6 +64,12 @@ struct Sensors
     this->last_Tp = last_Tp;
     this->T = T;
     this->potValue = potValue;
+    this->hum = hum;
+    this->webHold = webHold;
+    this->lastHold = lastHold;
+    this->held = held;
+    this->potDmd = potDmd;
+    this->controlMode = controlMode;
   }
 };
 
@@ -63,15 +78,24 @@ struct Control
 {
   double cmd;
   double T;
-  uint32_t duty;
-  double cmd_o;
+  uint32_t duty;        // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
+  double cmd_o;         // Observer PWM duty cycle output
+  double set;
+  double webDmd;        // Web sched, F
+  double heat_o;        // Observer heat modification, Btu/hr
+  double lastChangedWebDmd; // Remebered webDmd, F
   Control(void) {}
-  Control(double cmd, double T, uint32_t duty, double cmd_o)
+  Control(double cmd, double T, uint32_t duty, double cmd_o, double set, double webDmd,
+    double heat_o, double lastChangedWebDmd)
   {
     this->cmd = cmd;
     this->T = T;
     this->duty = duty;
     this->cmd_o = cmd_o;
+    this->set = set;
+    this->webDmd = webDmd;
+    this->heat_o = heat_o;
+    this->lastChangedWebDmd = lastChangedWebDmd;
   }
 };
 

@@ -68,6 +68,7 @@ extern const int8_t debug = 2;         // Level of debug printing (3)
 #define USE_DST          1          // Whether to apply DST or not, 0 or 1
 #define READ_TP_DELAY    1800000UL  // Time between Tp read shutdowns (1800000UL = 30 min)
 #define DWELL_TP_DELAY   30000UL    // Time between Tp read shutdowns (30000UL = 30 sec)
+const int EEPROM_ADDR = 1;          // Flash address
 
 #ifdef BARE
 #define BARE_PHOTON

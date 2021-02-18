@@ -430,15 +430,6 @@ struct PID
     this->err_comp = err_comp;
     this->cont = cont;
   }
-  void update(bool reset, double ref, double fb, double updateTime, double init)
-  {
-    err = ref - fb;
-    err_comp = DEAD(err, DB)*G;
-    prop = max(min(err_comp * tau, LLMAX), LLMIN);
-    integ = max(min(integ + updateTime*err_comp, MAX-prop), MIN-prop);
-    if ( reset ) integ = init;
-    cont = max(min(integ + prop, MAX), MIN);
-  }
   void update(bool reset, double ref, double fb, double updateTime, double init, double dyn_max)
   {
     err = ref - fb;

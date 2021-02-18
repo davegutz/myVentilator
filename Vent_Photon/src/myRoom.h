@@ -50,6 +50,7 @@ private:
     double rhoa_;           // Density of air, lbm/ft^3
     double Tdso_;           // Duct flow discharge temperature, F
     double vel_;            // Duct flow, ft/hr
+    double Tp_lagged_;      // Tp lagged with heat soak Tp_lag_;
     double flow_model_(const double fan_speed, const double rhoa, const double mua);
 public:
     DuctTherm(void);

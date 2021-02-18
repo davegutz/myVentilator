@@ -63,11 +63,16 @@ void DuctTherm::update(const int reset, const double T, const double Tp,  const 
 {
     // Inputs
     // Fan speed is linear with duty, per TerraBloom customer support.   Duty is 0-255.
-    Tdso_ = Tp - duct_temp_drop_;
+    if ( reset>0 ) Tp_lagged_ = Tp;
+    else
+    {
+        double delta = Tp - Tp_lagged_;
+        Tp_lagged_ += T * delta / mdot_lag_incr_;
+    }
+    Tdso_ = Tp_lagged_ - duct_temp_drop_;
     mdot_ = flow_model_(double(duty)/2.55, rhoa_, mua_);
 
     // Lag
-    // if ( reset>0 ) mdot_lag_ = mdot_;
     if ( reset>0 ) mdot_lag_ = 933.;
     else
     {
