@@ -77,8 +77,6 @@ Publish pubList = Publish();
 
 // Global locals
 char buffer[256];           // Serial print buffer
-double updateTime = 0.0; 
-uint32_t duty = 0;         
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
 // Global locals for Blynk TODO:  simplify
 String hmString = "00:00";  // time, hh:mm
@@ -89,16 +87,7 @@ double controlTime = 0.0;   // Decimal time, seconds since 1/1/2021
   bool weatherGood;         // webhook OAT lookup successful, T/F
 #endif
 double tempf;               // webhook OAT, deg F
-double integ = 0;           // Control integrator output, %
-double G = 0.150;           // Control gain, r/s = %/F (0.030)
-double tau = 600;           // Control lead, s  (600)
-double DB = 0.1;            // Half deadband width, deg F (0.5)
-double prop = 0;            // Control proportional output, %
-double cont = 0;            // Total control output, %
-double err = 0;             // Control error, F
-
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
-double cmd = 0;                  // PWM duty cycle output
 
 DuctTherm* duct;            // Duct model
 DuctTherm* ductEmbMod;      // Duct embedded model
@@ -160,8 +149,8 @@ void setup()
       Wire.setSpeed(CLOCK_SPEED_100KHZ);
       Wire.begin();
     }
-    // Initialize output (255 = off)
-    pwm_write(duty);
+    // Initialize output
+    pwm_write(0);
   }
   else
   {
@@ -246,7 +235,6 @@ void loop()
   static Sync *serialDebug = new Sync(SERIAL_DELAY);
   bool control;                             // Control sequence, T/F
   static Sync *controlFrame = new Sync(CONTROL_DELAY);
-  double updateTime = double(CONTROL_DELAY)/1000.0;
 
   // Top of loop
   // Start Blynk
@@ -286,7 +274,6 @@ void loop()
     char  tempStr[23];  // time, year-mo-dyThh:mm:ss iso format, no time zone
     controlTime = decimalTime(&currentTime, tempStr);
     hmString = String(tempStr);
-    updateTime = float(controlFrame->updateTime())/1000.0 + float(numTimeouts)/100.0;
     con->T = float(controlFrame->updateTime())/1000.0 + float(numTimeouts)/100.0;
   }
   delay(5);
@@ -346,14 +333,12 @@ void loop()
     sen->held = sen->webHold;
     saveTemperature(int(con->set), int(con->webDmd), sen->held, EEPROM_ADDR, sen->Ta_obs);
   }
-  static int count = 0;
-  if ( debug>1 && count<20 )
+  if ( debug>3 )
   {
     if ( sen->controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO, set=%7.1f\n", con->set);
     else if ( sen->controlMode==WEB ) Serial.printf("*******************Setpoint WEB, set=%7.1f\n", con->set);
     else if ( sen->controlMode==POT ) Serial.printf("*******************Setpoint POT, set=%7.1f\n", con->set);
     else Serial.printf("*******************unknown controlMode %d\n", sen->controlMode);
-    count++;
   }
 
   #ifndef NO_WEATHER_HOOK
@@ -378,41 +363,26 @@ void loop()
     if ( !dwellTp )  // Freeze control if dwellTp
     {
       // Main CLAW
-      err = con->set - sen->Ta_filt;
-      double err_comp = DEAD(err, DB)*G;
-      prop = max(min(err_comp * tau, 20), -20);  
-      integ = max(min(integ + updateTime*err_comp, sen->pcnt_pot-prop), -prop);
-      if ( (reset>0) & bare ) integ = 100;
-      cont = max(min(integ+prop, sen->pcnt_pot), 0);
       pid->update((reset>0) & bare, con->set, sen->Ta_filt, con->T, 100, sen->pcnt_pot);
-      Serial.printf("cont=%7.3f, pid->cont=%7.3f\n", cont, pid->cont);
 
       // Observer CLAW
       pid_o->update((reset>0) & bare, sen->Ta_filt, sen->Ta_obs, con->T, 0, C_MAX_O);
 
     }
-    cmd = max(min(min(sen->pcnt_pot, cont), C_MAX), C_MIN);
-    con->cmd = max(min(min(sen->pcnt_pot, cont), C_MAX), C_MIN);
+    con->cmd = max(min(min(sen->pcnt_pot, pid->cont), C_MAX), C_MIN);
     con->cmd_o = max(min(pid_o->cont, C_MAX_O), C_MIN_O);
     if ( !bare ) con->heat_o = con->cmd_o * M_GAIN_O;
     else con->heat_o = 0;
 
     // Latch on fan enable.   If temperature high, turn on.  If low, turn off.   If in-between and already on, leave on.
     // Latch prevents cycling of fan as Tp cools on startup of fan.
-    if ( sen->Tp>74.0 || ((sen->Tp>73.0) & (duty>0)) ) duty = min(uint32_t(cmd*255.0/100.0), uint32_t(255));
-    else duty = 0;
-    if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>=23 ) duty = 0;
-    if ( dwellTp ) duty = 0;
-    if ( sen->Tp>110.0 ) duty = 0;  // Fire shutoff
-
     if ( sen->Tp>74.0 || ((sen->Tp>73.0) & (con->duty>0)) ) con->duty = min(uint32_t(con->cmd*255.0/100.0), uint32_t(255));
     else con->duty = 0;
     if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>=23 ) con->duty = 0;
     if ( dwellTp ) con->duty = 0;
     if ( sen->Tp>110.0 ) con->duty = 0;  // Fire shutoff
     
-    pwm_write(duty);
-    //    pwm_write(con->duty);
+    pwm_write(con->duty);
     if ( con->duty>0 ) digitalWrite(status_led, HIGH);
     else  digitalWrite(status_led, LOW);
   }
@@ -438,7 +408,7 @@ void loop()
   if ( debug>1 && serial )
   {
     serial_print_inputs(now, T);
-    serial_print(cmd);
+    serial_print(con->cmd);
   }
 
   // Initialize complete once sensors and models started
@@ -483,7 +453,7 @@ void serial_print(double cmd)
   if ( debug>0 )
   {
     Serial.print(cmd, 2); Serial.print(F(", "));
-    Serial.print(duty, DEC); Serial.print(F(", "));
+    Serial.print(pubList.duty, DEC); Serial.print(F(", "));
     Serial.println("");
   }
   else
@@ -519,7 +489,7 @@ boolean load(int reset, double T, Sensors *sen, Control *con)
     sen->Ta = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + (TA_TEMPCAL); // convert to fahrenheit and calibrate
 
     // Model
-    duct->update(reset, T, sen->Tp,  duty);
+    duct->update(reset, T, sen->Tp,  con->duty);
     room->update(reset, T, duct->Tdso(), duct->mdot_lag(), sen->OAT, con->heat_o, sen->Ta);
     sen->Ta_obs = room->Ta();
 
@@ -543,7 +513,7 @@ boolean load(int reset, double T, Sensors *sen, Control *con)
     sen->pcnt_pot = 100.;
 
     // Model
-    duct->update(reset, T, sen->Tp,  duty);
+    duct->update(reset, T, sen->Tp,  con->duty);
     room->update(reset, T, duct->Tdso(), duct->mdot_lag(), sen->OAT, sun_wall->solar_heat(), con->set);
     sen->Ta_obs = room->Ta();
     sen->Ta = room->Ta();
