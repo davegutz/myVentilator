@@ -178,6 +178,7 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #include <DS18.h>
 #include "myInsolation.h"
 #include "mySync.h"
+#include "mySubs.h"
 
 // Global locals
 char buffer[256];           // Serial print buffer
@@ -189,7 +190,6 @@ double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
 bool webHold = false;       // Web permanence request
-int potValue = 65;          // Dial raw value, F
 double webDmd = 65.0;       // Web sched, F
 double pcnt_pot = 0;        // Potentiometer read, % of 0-10v
 double pcnt_tach = 0;       // Tach read, % of 0-10v
@@ -243,7 +243,12 @@ DuctTherm* ductEmbMod;      // Duct embedded model
 RoomTherm* room;            // Room model
 RoomTherm* roomEmbMod;      // Room embedded model
 General2_Pole* TaSenseFilt; // Sensor noise and general loop filter
+General2_Pole* TaSenseFilt_o; // Sensor noise and general loop filter  TODO delete this once pid implemented fully
 Insolation* sun_wall;       // Solar insolation effects
+Sensors *sen;               // Sensors
+Control *con;               // Control
+PID *pid;                   // Main PID
+PID *pid_o;                 // Observer PID
 
 #ifdef PHOTON
   byte pin_1_wire = D6;     // 1-wire Plenum temperature sensor
@@ -258,10 +263,10 @@ Insolation* sun_wall;       // Solar insolation effects
 void serial_print_inputs(unsigned long now, double T);
 void serial_print(double cmd);
 uint32_t pwm_write(uint32_t duty);
-boolean load(int reset, double T);
+boolean load(int reset, double T, Sensors *sen);
 DS18 sensor_plenum(pin_1_wire);
 void publish1(void); void publish2(void); void publish3(void); void publish4(void);
-void publish_particle(unsigned long now, bool publishP, double cmd);
+void publish_particle(unsigned long now);
 int particleHold(String command);
 int particleSet(String command);
 int setSaveDisplayTemp(double t);
@@ -322,7 +327,13 @@ void setup()
   room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_QCON, M_QLK, M_RSA, M_RSAI,
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
   TaSenseFilt = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.80, 0.0, 120.);
+  TaSenseFilt_o = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.80, 0.0, 120.);
   sun_wall = new Insolation(SUN_WALL_AREA, SUN_WALL_REFLECTIVITY, GMT);
+  sen = new Sensors(NOMSET, NOMSET, NOMSET, NOMSET, 32, 0, 0, 0, NOMSET, 0, NOMSET);   
+  con = new Control(0.0, 0.0, 0, 0.0);
+  pid = new PID(C_G, C_TAU, C_MAX, C_MIN, C_LLMAX, C_LLMIN, 0, 0, C_DB, 0, 0, 0);
+  pid_o = new PID(C_G, C_TAU, C_MAX_O, C_MIN_O, C_LLMAX_O, C_LLMIN_O, 0, 0, C_DB_O, 0, 0, 0);
+
 
   // Begin
   Particle.connect();
@@ -401,7 +412,9 @@ void loop()
   if ( abs(Tp_Sense-last_Tp_Sense)>0.01 )
   {
     if ( debug>1 ) Serial.printf("TP:   Tp_Sense=%7.3f, last_Tp_Sense=%7.3f\n", Tp_Sense, last_Tp_Sense);
+    if ( debug>1 ) Serial.printf("TP:   Tp=%7.3f, last_Tp=%7.3f\n", sen->Tp, sen->last_Tp);
     last_Tp_Sense = Tp_Sense;
+    sen->last_Tp = sen->Tp;
     readPlenum->update(now, true);
   }
   publishP = publishParticle->update(now, false);
@@ -409,6 +422,7 @@ void loop()
   dwellTp = dwellPlenum->updateN(now, false, readTp);
   read = readSensors->update(now, reset, !publishP);
   double deltaR = double(readSensors->updateTime())/1000.0;
+  sen->T =  double(readSensors->updateTime())/1000.0;
   query = queryWeb->update(reset, now, !read);
   serial = serialDebug->update(false, now, !query);
 
@@ -423,6 +437,7 @@ void loop()
     controlTime = decimalTime(&currentTime, tempStr);
     hmString    = String(tempStr);
     updateTime = float(controlFrame->updateTime())/1000.0 + float(numTimeouts)/100.0;
+    con->T = float(controlFrame->updateTime())/1000.0 + float(numTimeouts)/100.0;
   }
   delay(5);
   if ( bare )
@@ -446,17 +461,17 @@ void loop()
   // ii. webHold is transmitted periodically by Blynk to Photon
 
   // Initialize scheduling logic - don't change on boot
-  static int lastChangedPot = potValue;
+  static int lastChangedPot = sen->potValue;
   // If user has adjusted the potentiometer (overrides schedule until next schedule change)
   // Use potValue for checking because it has more resolution than the integer potDmd
-  if ( fabsf(potValue-lastChangedPot)>16 && checkPot )  // adjust from 64 because my range is 1214 not 4095
+  if ( fabsf(sen->potValue-lastChangedPot)>16 && checkPot )  // adjust from 64 because my range is 1214 not 4095
   {
       controlMode     = POT;
       double t = min(max(MINSET, potDmd), MAXSET);
       setSaveDisplayTemp(t);
       held = false;  // allow the pot to override the web demands.  HELD allows web to override schd.
       if ( debug>6 ) Serial.printf("Setpoint based on pot:  %f\n", t);
-      lastChangedPot = potValue;
+      lastChangedPot = sen->potValue;
   }
   //
   // Otherwise if web Blynk has adjusted setpoint (overridden temporarily by pot, until next web adjust)
@@ -517,6 +532,8 @@ void loop()
       integ = max(min(integ + updateTime*err_comp, pcnt_pot-prop), -prop);
       if ( (reset>0) & bare ) integ = 100;
       cont = max(min(integ+prop, pcnt_pot), 0);
+      pid->update((reset>0) & bare, set, sen->Ta_filt, con->T, 100, pcnt_pot);
+      Serial.printf("cont=%7.3f, pid->cont=%7.3f\n", cont, pid->cont);
 
       // Observer CLAW
       err_o = Ta_Filt - Ta_Obs;
@@ -525,9 +542,14 @@ void loop()
       integ_o = max(min(integ_o + updateTime*err_comp_o, 100-prop_o), -100-prop_o);
       if ( (reset>0) & bare ) integ_o = 100;
       cont_o = max(min(integ_o + prop_o, 100), -100);
+      pid_o->update((reset>0) & bare, sen->Ta_filt, sen->Ta_obs, con->T, 100);
+      Serial.printf("cont_o=%7.3f, pid_o->cont=%7.3f, Ta_Filt=%7.3f, sen->Ta_filt=%7.3f\n", cont_o, pid_o->cont, Ta_Filt, sen->Ta_filt);
+
     }
-    cmd = max(min(min(pcnt_pot, cont),100.0), 0);
-    cmd_o = max(min(min(100, cont_o), 100), -100);
+    cmd = max(min(min(pcnt_pot, cont), C_MAX), C_MIN);
+    con->cmd = max(min(min(pcnt_pot, cont), C_MAX), C_MIN);
+    cmd_o = max(min(min(100, cont_o), C_MAX_O), C_MIN_O);
+    con->cmd_o = max(min(cont_o, C_MAX_O), C_MIN_O);
     if ( !bare ) heat_o = cmd_o * M_GAIN_O;
     else heat_o = 0;
 
@@ -538,15 +560,24 @@ void loop()
     if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>=23 ) duty = 0;
     if ( dwellTp ) duty = 0;
     if ( Tp_Sense>110.0 ) duty = 0;  // Fire shutoff
+
+    if ( sen->Tp>74.0 || ((sen->Tp>73.0) & (con->duty>0)) ) con->duty = min(uint32_t(con->cmd*255.0/100.0), uint32_t(255));
+    else con->duty = 0;
+    if ( Time.hour(currentTime)<4 || Time.hour(currentTime)>=23 ) con->duty = 0;
+    if ( dwellTp ) con->duty = 0;
+    if ( sen->Tp>110.0 ) con->duty = 0;  // Fire shutoff
+    
     pwm_write(duty);
-    digitalWrite(status_led, HIGH);
+    //    pwm_write(con->duty);
+    if ( con->duty>0 ) digitalWrite(status_led, HIGH);
+    else  digitalWrite(status_led, LOW);
   }
 
   // Read sensors
   if ( read )
   {
     if ( debug>2 ) Serial.printf("Read update=%7.3f\n", deltaR);
-    load(reset, deltaR);
+    load(reset, deltaR, sen);
     if ( bare ) delay(41);  // Usual I2C time
   }
 
@@ -556,7 +587,7 @@ void loop()
   if ( (debug>0) & publishP )
   {
     if ( debug>3 ) Serial.println(F("publish"));
-    publish_particle(now, publishP, cmd);
+    publish_particle(now);
   }
 
   // Monitor for debug
@@ -607,7 +638,7 @@ void serial_print(double cmd)
 
 // Load and filter
 // TODO:   move 'read' stuff here
-boolean load(int reset, double T)
+boolean load(int reset, double T, Sensors *sen)
 {
   static boolean done_testing = false;
 
@@ -622,6 +653,7 @@ boolean load(int reset, double T)
     Wire.write(byte(0));
     uint8_t b = Wire.read();
     I2C_Status = b >> 6;
+    sen->I2C_status = b >> 6;
 
     // Honeywell conversion
     int rawHum  = (b << 8) & 0x3f00;
@@ -630,23 +662,28 @@ boolean load(int reset, double T)
     int rawTemp = (Wire.read() << 6) & 0x3fc0;
     rawTemp |=Wire.read() >> 2;
     Ta_Sense = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + (TA_TEMPCAL); // convert to fahrenheit and calibrate
+    sen->Ta = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + (TA_TEMPCAL); // convert to fahrenheit and calibrate
 
     // Model
     duct->update(reset, T, Tp_Sense,  duty);
     room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, heat_o, Ta_Sense);
     Ta_Obs = room->Ta();
+    sen->Ta_obs = room->Ta();
 
     // MAXIM conversion 1-wire Tp plenum temperature
     if (sensor_plenum.read()) Tp_Sense = sensor_plenum.fahrenheit() + (TP_TEMPCAL);
+    if (sensor_plenum.read()) sen->Tp = sensor_plenum.fahrenheit() + (TP_TEMPCAL);
 
     // Pot input
     int raw_pot_trim = analogRead(pot_trim);
     int raw_pot_control = analogRead(pot_control);
     pcnt_pot = min(max(double(raw_pot_trim)/40.96*1.1, double(raw_pot_control)/40.96*1.6), 100);
+    sen->pcnt_pot = min(max(double(raw_pot_trim)/40.96*1.1, double(raw_pot_control)/40.96*1.6), 100);
 
     // Tach input
     int raw_tach = analogRead(tach_sense);
     pcnt_tach = double(raw_tach)/40.96;
+    sen->pcnt_tach = double(raw_tach)/40.96;
   }
   else
   {
@@ -654,14 +691,17 @@ boolean load(int reset, double T)
     int raw_pot_control = analogRead(pot_control);
     Tp_Sense = double(raw_pot_control)/4096. * 10 + 70;;
     pcnt_pot = 100.;
+    sen->pcnt_pot = 100.;
 
     // Model
     duct->update(reset, T, Tp_Sense,  duty);
     room->update(reset, T, duct->Tdso(), duct->mdot_lag(), OAT, solar_heat, set);
     Ta_Obs = room->Ta();
     Ta_Sense = Ta_Obs;
+    sen->Ta_obs = room->Ta();
   }
   Ta_Filt = TaSenseFilt->calculate( Ta_Sense, reset, T);
+  sen->Ta_filt = TaSenseFilt_o->calculate( Ta_Sense, reset, T);
 
   // Built-in-test logic.   Run until finger detected
   if ( true && !done_testing )
@@ -708,7 +748,7 @@ void publish2(void)
   #ifndef NO_BLYNK
     if (debug>4) Serial.printf("Blynk write2\n");
     Blynk.virtualWrite(V7,  held);
-    Blynk.virtualWrite(V8,  updateTime);
+    Blynk.virtualWrite(V8,  con->T);
     Blynk.virtualWrite(V9,  potDmd);
     Blynk.virtualWrite(V10, lastChangedWebDmd);
     Blynk.virtualWrite(V11, set);
@@ -744,13 +784,13 @@ void publish4(void)
 
 
 // Check connection and publish Particle
-void publish_particle(unsigned long now, bool publishP, double cmd)
+void publish_particle(unsigned long now)
 {
   char  tmpsStr[STAT_RESERVE];
   sprintf(tmpsStr, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
   %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
-    unit.c_str(), hmString.c_str(), controlTime, set-HYST, Tp_Sense, Ta_Sense, cmd, updateTime,
-    OAT, Ta_Obs, err, prop, integ, cont, pcnt_pot, duty, Ta_Filt, solar_heat, heat_o, '\0');
+    unit.c_str(), hmString.c_str(), controlTime, set-HYST, sen->Tp, sen->Ta, con->cmd, con->T,
+    sen->OAT, sen->Ta_obs, err, prop, integ, cont, sen->pcnt_pot, con->duty, sen->Ta_filt, solar_heat, heat_o, '\0');
   
   #ifndef NO_PARTICLE
     statStr = String(tmpsStr);
@@ -758,17 +798,14 @@ void publish_particle(unsigned long now, bool publishP, double cmd)
   if ( debug>2 ) Serial.println(tmpsStr);
   if ( Particle.connected() )
   {
-    if ( publishP ) 
-    {
-      if ( debug>2 ) Serial.printf("Particle write\n");
-      unsigned nowSec = now/1000UL;
-      unsigned sec = nowSec%60;
-      unsigned min = (nowSec%3600)/60;
-      unsigned hours = (nowSec%86400)/3600;
-      sprintf(publishString,"%u:%u:%u",hours,min,sec);
-      Particle.publish("Uptime",publishString);
-      Particle.publish("stat", tmpsStr);
-    }
+    if ( debug>2 ) Serial.printf("Particle write\n");
+    unsigned nowSec = now/1000UL;
+    unsigned sec = nowSec%60;
+    unsigned min = (nowSec%3600)/60;
+    unsigned hours = (nowSec%86400)/3600;
+    sprintf(publishString,"%u:%u:%u",hours,min,sec);
+    Particle.publish("Uptime",publishString);
+    Particle.publish("stat", tmpsStr);
   }
   else
   {

@@ -12,6 +12,8 @@
 #ifndef _myFilters_H
 #define _myFilters_H
 
+#include "application.h" // Should not be needed if file ino or Arduino
+
 #define DEAD(X, HDB)  ( max(X-HDB, 0) + min(X+HDB, 0) )
 
 
@@ -397,5 +399,55 @@ protected:
   TustinIntegrator *Tustin_;
 };
 
+// PID
+struct PID
+{
+  double G;     // Gain, r/s = %/F
+  double tau;   // Lead, s
+  double MAX;   // Integrator max limit, %
+  double MIN;   // Integrator min limit, %
+  double LLMAX; // Lead max, %
+  double LLMIN; // Lead min, %
+  double prop;  // Proportional output, %
+  double integ; // Integrator output, %
+  double DB;    // Half deadband width, deg F
+  double err;   // Error, F
+  double err_comp; // Compensated error, F
+  double cont;  // Total control output, %
+  PID(double G, double tau, double MAX, double MIN, double LLMAX, double LLMIN, double prop, double integ, double DB,
+    double err, double err_comp, double cont)
+  {
+    this->G = G;
+    this->tau = tau;
+    this->MAX = MAX;
+    this->MIN = MIN;
+    this->LLMAX = LLMAX;
+    this->LLMIN = LLMIN;
+    this->prop = prop;
+    this->integ = integ;
+    this->DB = DB;
+    this->err = err;
+    this->err_comp = err_comp;
+    this->cont = cont;
+  }
+  void update(bool reset, double ref, double fb, double updateTime, double init)
+  {
+    err = ref - fb;
+    err_comp = DEAD(err, DB)*G;
+    prop = max(min(err_comp * tau, LLMAX), LLMIN);
+    integ = max(min(integ + updateTime*err_comp, MAX-prop), MIN-prop);
+    if ( reset ) integ = init;
+    cont = max(min(integ + prop, MAX), MIN);
+  }
+  void update(bool reset, double ref, double fb, double updateTime, double init, double dyn_max)
+  {
+    err = ref - fb;
+    err_comp = DEAD(err, DB)*G;
+    prop = max(min(err_comp * tau, LLMAX), LLMIN);
+    integ = max(min(integ + updateTime*err_comp, dyn_max-prop), MIN-prop);
+    if ( reset ) integ = init;
+    cont = max(min(integ + prop, dyn_max), MIN);
+  }
+};
 
 #endif

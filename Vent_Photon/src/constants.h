@@ -112,7 +112,20 @@ const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain
 #define M_TRANS_CONV_HIGH   700     // mdot threshold to end transition to 0 qconv
 #define M_GAIN_O        6           // Change duty into heat for model observer control  btu/hr/duty
 
-const double SUN_WALL_AREA = 8*10;  // Area of sunshine room wall impacted by sun, ft^2
+#define C_G             0.150       // Control gain, r/s = %/F (0.030)
+#define C_TAU           600         // Control lead, s  (600)
+#define C_DB            0.1         // Deadband in error, F
+#define C_MAX           100         // Integral and overall max limit, %
+#define C_MIN           0           // Integral and overall min limit, %
+#define C_LLMAX         20          // Proportional path max limit, %
+#define C_LLMIN         -20         // Proportional path min limit, %
+#define C_DB_O          0.0         // Deadband in error, F
+#define C_MAX_O         500         // Integral and overall max limit, %
+#define C_MIN_O         -500        // Integral and overall min limit, %
+#define C_LLMAX_O       20          // Proportional path max limit, %
+#define C_LLMIN_O       -20         // Proportional path min limit, %
+
+const double SUN_WALL_AREA = 8*10/2;  // Area of sunshine room wall impacted by sun, ft^2
 #define SUN_WALL_REFLECTIVITY 0.8   // Fraction of energy rejected by wall
 
 #endif // CONSTANTS_H_
