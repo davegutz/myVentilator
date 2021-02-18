@@ -98,7 +98,40 @@ struct Control
     this->lastChangedWebDmd = lastChangedWebDmd;
   }
 };
-
+ 
+  
+// Publishing
+struct Publish
+{
+  uint32_t now;
+  String unit;
+  String hmString;
+  double controlTime;
+  double set;
+  double Tp;
+  double Ta;
+  double cmd;
+  double T;
+  double OAT;
+  double Ta_obs;
+  int I2C_status;
+  double err;
+  double prop;
+  double integ;
+  double cont;
+  double pcnt_pot;
+  uint32_t duty;
+  double Ta_filt;
+  double solar_heat;
+  double heat_o;
+  double hum;
+  int numTimeouts;
+  bool held;
+  double potDmd;
+  double lastChangedWebDmd;
+  bool webHold;
+  double webDmd;
+};
 
 void publish_particle(unsigned long now);
 void serial_print_inputs(unsigned long now, double T);

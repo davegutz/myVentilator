@@ -72,6 +72,8 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #include "mySubs.h"
 
 extern const int8_t debug = 2;         // Level of debug printing (3)
+extern Publish pubList;
+Publish pubList = Publish();
 
 // Global locals
 char buffer[256];           // Serial print buffer
@@ -104,10 +106,6 @@ RoomTherm* room;            // Room model
 RoomTherm* roomEmbMod;      // Room embedded model
 General2_Pole* TaSenseFilt; // Sensor noise and general loop filter
 Insolation* sun_wall;       // Solar insolation effects
-Sensors *sen;               // Sensors
-Control *con;               // Control
-PID *pid;                   // Main PID
-PID *pid_o;                 // Observer PID
 
 #ifdef PHOTON
   byte pin_1_wire = D6;     // 1-wire Plenum temperature sensor
@@ -121,13 +119,13 @@ PID *pid_o;                 // Observer PID
 // Utilities
 void serial_print(double cmd);
 uint32_t pwm_write(uint32_t duty);
-boolean load(int reset, double T, Sensors *sen);
+boolean load(int reset, double T, Sensors *sen, Control *con);
 DS18 sensor_plenum(pin_1_wire);
 void publish1(void); void publish2(void); void publish3(void); void publish4(void);
 int particleHold(String command);
 int particleSet(String command);
-int setSaveDisplayTemp(double t);
-void saveTemperature(const int set, const int webDmd, const int held, const int addr);
+int setSaveDisplayTemp(double t, Sensors *sen, Control *con);
+void saveTemperature(const int set, const int webDmd, const int held, const int addr, double Ta_obs);
 void gotWeatherData(const char *name, const char *data);
 void getWeather(void);
 String tryExtractString(String str, const char* start, const char* end);
@@ -154,7 +152,7 @@ void setup()
     pinMode(pwm_pin, OUTPUT);
 
     // Initialize schedule
-    setSaveDisplayTemp(0.0);  // assure user reset happened
+    saveTemperature(NOMSET, int(NOMSET), false, EEPROM_ADDR, NOMSET);
 
     // I2C
     if ( !bare )
@@ -185,11 +183,6 @@ void setup()
     M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH); 
   TaSenseFilt = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.80, 0.0, 120.);
   sun_wall = new Insolation(SUN_WALL_AREA, SUN_WALL_REFLECTIVITY, GMT);
-  sen = new Sensors(NOMSET, NOMSET, NOMSET, NOMSET, 32, 0, 0, 0, NOMSET, 0, NOMSET, 999, false, false, false, NOMSET, POT);   
-  con = new Control(0.0, 0.0, 0, 0.0, NOMSET, NOMSET, 0, NOMSET);
-  pid = new PID(C_G, C_TAU, C_MAX, C_MIN, C_LLMAX, C_LLMIN, 0, 0, C_DB, 0, 0, 0);
-  pid_o = new PID(C_G, C_TAU, C_MAX_O, C_MIN_O, C_LLMAX_O, C_LLMIN_O, 0, 0, C_DB_O, 0, 0, 0);
-
 
   // Begin
   Particle.connect();
@@ -226,6 +219,11 @@ void setup()
 // Loop
 void loop()
 {
+  static Sensors *sen = new Sensors(NOMSET, NOMSET, NOMSET, NOMSET, 32, 0, 0, 0, NOMSET, 0,
+                              NOMSET, 999, true, true, true, NOMSET, POT);                                      // Sensors
+  static Control *con = new Control(0.0, 0.0, 0, 0.0, NOMSET, NOMSET, 0, NOMSET);                               // Control
+  static PID *pid = new PID(C_G, C_TAU, C_MAX, C_MIN, C_LLMAX, C_LLMIN, 0, 0, C_DB, 0, 0, 0);                   // Main PID
+  static PID *pid_o = new PID(C_G, C_TAU, C_MAX_O, C_MIN_O, C_LLMAX_O, C_LLMIN_O, 0, 0, C_DB_O, 0, 0, 0);       // Observer PID
   unsigned long currentTime;                // Time result
   static unsigned long now = millis();      // Keep track of time
   static unsigned long past = millis();     // Keep track of time
@@ -320,7 +318,7 @@ void loop()
   {
       sen->controlMode     = POT;
       double t = min(max(MINSET, sen->potDmd), MAXSET);
-      setSaveDisplayTemp(t);
+      setSaveDisplayTemp(t, sen, con);
       sen->held = false;  // allow the pot to override the web demands.  HELD allows web to override schd.
       if ( debug>6 ) Serial.printf("Setpoint based on pot:  %f\n", t);
       lastChangedPot = sen->potValue;
@@ -333,27 +331,29 @@ void loop()
   {
     sen->controlMode     = WEB;
     double t = min(max(MINSET, con->webDmd), MAXSET);
-    setSaveDisplayTemp(t);
+    setSaveDisplayTemp(t, sen, con);
     con->lastChangedWebDmd   = con->webDmd;
   }
   else if ( !sen->held )
   {
     sen->controlMode = AUTO;
     double t = min(max(MINSET, NOMSET), MAXSET);
-    setSaveDisplayTemp(t);
+    setSaveDisplayTemp(t, sen, con);
   }
   if ( sen->webHold!=sen->lastHold )
   {
     sen->lastHold = sen->webHold;
     sen->held = sen->webHold;
-    saveTemperature(int(con->set), int(con->webDmd), sen->held, EEPROM_ADDR);
+    saveTemperature(int(con->set), int(con->webDmd), sen->held, EEPROM_ADDR, sen->Ta_obs);
   }
-  if ( debug>3 )
+  static int count = 0;
+  if ( debug>1 && count<20 )
   {
     if ( sen->controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO, set=%7.1f\n", con->set);
     else if ( sen->controlMode==WEB ) Serial.printf("*******************Setpoint WEB, set=%7.1f\n", con->set);
     else if ( sen->controlMode==POT ) Serial.printf("*******************Setpoint POT, set=%7.1f\n", con->set);
     else Serial.printf("*******************unknown controlMode %d\n", sen->controlMode);
+    count++;
   }
 
   #ifndef NO_WEATHER_HOOK
@@ -421,7 +421,7 @@ void loop()
   if ( read )
   {
     if ( debug>2 ) Serial.printf("Read update=%7.3f\n", sen->T);
-    load(reset, sen->T, sen);
+    load(reset, sen->T, sen, con);
     if ( bare ) delay(41);  // Usual I2C time
   }
 
@@ -444,6 +444,36 @@ void loop()
   // Initialize complete once sensors and models started
   if ( read ) reset = 0;
 
+  // The outputs
+  pubList.now = now;
+  pubList.unit = unit;
+  pubList.hmString =hmString;
+  pubList.controlTime = controlTime;
+  pubList.set = con->set;
+  pubList.Tp = sen->Tp;
+  pubList.Ta = sen->Ta;
+  pubList.cmd = con->cmd;
+  pubList.T = con->T;
+  pubList.OAT = sen->OAT;
+  pubList.Ta_obs = sen->Ta_obs;
+  pubList.I2C_status = sen->I2C_status;
+  pubList.err = pid->err;
+  pubList.prop = pid->prop;
+  pubList.integ = pid->integ;
+  pubList.cont = pid->cont;
+  pubList.pcnt_pot = sen->pcnt_pot;
+  pubList.duty = con->duty;
+  pubList.Ta_filt = sen->Ta_filt;
+  pubList.solar_heat = sun_wall->solar_heat();
+  pubList.heat_o = con->heat_o;
+  pubList.hum = sen->hum;
+  pubList.numTimeouts = numTimeouts;
+  pubList.held = sen->held;
+  pubList.potDmd = sen->potDmd;
+  pubList.lastChangedWebDmd = con->lastChangedWebDmd;
+  sen->webHold = pubList.webHold;
+  con->webDmd = pubList.webDmd;
+
 } // loop
 
 
@@ -464,7 +494,7 @@ void serial_print(double cmd)
 
 // Load and filter
 // TODO:   move 'read' stuff here
-boolean load(int reset, double T, Sensors *sen)
+boolean load(int reset, double T, Sensors *sen, Control *con)
 {
   static boolean done_testing = false;
 
@@ -551,11 +581,11 @@ void publish1(void)
 {
   #ifndef NO_BLYNK
     if (debug>4) Serial.printf("Blynk write1\n");
-    Blynk.virtualWrite(V0,  cmd);
-    Blynk.virtualWrite(V2,  sen->Ta);
-    Blynk.virtualWrite(V3,  sen->hum);
+    Blynk.virtualWrite(V0,  pubList.cmd);
+    Blynk.virtualWrite(V2,  pubList.Ta);
+    Blynk.virtualWrite(V3,  pubList.hum);
     // Blynk.virtualWrite(V4,  intentionally blank; used elsewhere);
-    Blynk.virtualWrite(V5,  sen->Tp);
+    Blynk.virtualWrite(V5,  pubList.Tp);
   #endif
 }
 
@@ -565,11 +595,11 @@ void publish2(void)
 {
   #ifndef NO_BLYNK
     if (debug>4) Serial.printf("Blynk write2\n");
-    Blynk.virtualWrite(V7,  sen->held);
-    Blynk.virtualWrite(V8,  con->T);
-    Blynk.virtualWrite(V9,  sen->potDmd);
-    Blynk.virtualWrite(V10, con->lastChangedWebDmd);
-    Blynk.virtualWrite(V11, con->set);
+    Blynk.virtualWrite(V7,  pubList.held);
+    Blynk.virtualWrite(V8,  pubList.T);
+    Blynk.virtualWrite(V9,  pubList.potDmd);
+    Blynk.virtualWrite(V10, pubList.lastChangedWebDmd);
+    Blynk.virtualWrite(V11, pubList.set);
   #endif
 }
 
@@ -579,11 +609,11 @@ void publish3(void)
 {
   #ifndef NO_BLYNK
     if (debug>4) Serial.printf("Blynk write3\n");
-    Blynk.virtualWrite(V12, sun_wall->solar_heat());
-    Blynk.virtualWrite(V13, sen->Ta);
-    Blynk.virtualWrite(V14, sen->I2C_status);
-    Blynk.virtualWrite(V15, hmString);
-    Blynk.virtualWrite(V16, duty);
+    Blynk.virtualWrite(V12, pubList.solar_heat);
+    Blynk.virtualWrite(V13, pubList.Ta);
+    Blynk.virtualWrite(V14, pubList.I2C_status);
+    Blynk.virtualWrite(V15, pubList.hmString);
+    Blynk.virtualWrite(V16, pubList.duty);
   #endif
 }
 
@@ -594,16 +624,16 @@ void publish4(void)
   #ifndef NO_BLYNK
     if (debug>4) Serial.printf("Blynk write4\n");
     Blynk.virtualWrite(V17, false);
-    Blynk.virtualWrite(V18, sen->OAT);
-    Blynk.virtualWrite(V19, sen->Ta_obs);
-    Blynk.virtualWrite(V20, con->heat_o);
+    Blynk.virtualWrite(V18, pubList.OAT);
+    Blynk.virtualWrite(V19, pubList.Ta_obs);
+    Blynk.virtualWrite(V20, pubList.heat_o);
   #endif
 }
 
 
 
 // Process a new temperature setting
-int setSaveDisplayTemp(double t)
+int setSaveDisplayTemp(double t, Sensors *sen, Control *con)
 {
     con->set = t;
     // Serial.printf("setSave:   set=%7.1f\n", con->set);
@@ -614,7 +644,7 @@ int setSaveDisplayTemp(double t)
         case WEB:   break;
         case SCHD:  break;
     }
-    saveTemperature(con->set, int(con->webDmd), sen->held, EEPROM_ADDR);
+    saveTemperature(con->set, int(con->webDmd), sen->held, EEPROM_ADDR, sen->Ta_obs);
     return con->set;
 }
 
@@ -626,7 +656,7 @@ int setSaveDisplayTemp(double t)
 BLYNK_WRITE(V4) {
     if (param.asInt() > 0)
     {
-        con->webDmd = param.asDouble();
+        pubList.webDmd = param.asDouble();
     }
 }
 #endif
@@ -638,8 +668,8 @@ int particleSet(String command)
   int possibleSet = atoi(command);
   if (possibleSet >= MINSET && possibleSet <= MAXSET)
   {
-      con->webDmd = double(possibleSet);
-      return possibleSet;
+    pubList.webDmd = double(possibleSet);
+    return possibleSet;
   }
   else return -1;
 }
@@ -650,7 +680,7 @@ int particleSet(String command)
 // Attach a switch widget to the Virtual pin 6 in your Blynk app - and demand continuous web control
 // Note:  there are separate virtual IN and OUT in Blynk.
 BLYNK_WRITE(V6) {
-    sen->webHold = param.asInt();
+    pubList.webHold = param.asInt();
 }
 #endif
 #ifndef NO_PARTICLE
@@ -658,13 +688,13 @@ int particleHold(String command)
 {
   if (command == "HOLD")
   {
-    sen->webHold = true;
+    pubList.webHold = true;
     return 1;
   }
   else
   {
-     sen->webHold = false;
-     return 0;
+    pubList.webHold = false;
+    return 0;
   }
 }
 #endif
@@ -674,9 +704,9 @@ int particleHold(String command)
 // failures the thermostat will reset to the condition it was in before
 // the power failure.   Filter initialized to sensed temperature (lose anticipation briefly
 // following recovery from power failure).
-void saveTemperature(const int set, const int webDmd, const int held, const int addr)
+void saveTemperature(const int set, const int webDmd, const int held, const int addr, double Ta_obs)
 {
-    uint8_t values[4] = { (uint8_t)set, (uint8_t)held, (uint8_t)webDmd, (uint8_t)(roundf(sen->Ta_obs)) };
+    uint8_t values[4] = { (uint8_t)set, (uint8_t)held, (uint8_t)webDmd, (uint8_t)(roundf(Ta_obs)) };
     EEPROM.put(addr, values);
 }
 

@@ -31,23 +31,17 @@
 #include "myFilters.h"
 
 extern const int8_t debug;
-extern Insolation* sun_wall; 
+extern Publish pubList;
 extern char buffer[256];
-extern String hmString;
-extern double controlTime;
-extern Sensors *sen;
-extern Control *con;
-extern PID *pid;
-extern int numTimeouts;
-
 
 // Check connection and publish Particle
 void publish_particle(unsigned long now)
 {
   sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
   %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
-    unit.c_str(), hmString.c_str(), controlTime, con->set-HYST, sen->Tp, sen->Ta, con->cmd, con->T,
-    sen->OAT, sen->Ta_obs, pid->err, pid->prop, pid->integ, pid->cont, sen->pcnt_pot, con->duty, sen->Ta_filt, sun_wall->solar_heat(), con->heat_o, '\0');
+    pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.set-HYST, pubList.Tp,
+    pubList.Ta, pubList.cmd, pubList.T, pubList.OAT, pubList.Ta_obs, pubList.err, pubList.prop,
+    pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o, '\0');
   
   if ( debug>2 ) Serial.println(buffer);
   if ( Particle.connected() )
@@ -67,7 +61,7 @@ void publish_particle(unsigned long now)
   {
     if ( debug>1 ) Serial.printf("Particle not connected....connecting\n");
     Particle.connect();
-    numTimeouts++;
+    pubList.numTimeouts++;
   }
 }
 
@@ -76,16 +70,16 @@ void publish_particle(unsigned long now)
 void serial_print_inputs(unsigned long now, double T)
 {
   Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(", ");
-  Serial.print(controlTime, 3); Serial.print(", ");
+  Serial.print(pubList.controlTime, 3); Serial.print(", ");
   Serial.print(T, 6); Serial.print(", ");  
-  Serial.print(sen->I2C_status, DEC); Serial.print(", ");
-  Serial.print(con->set, 1); Serial.print(", ");
-  Serial.print(sen->Tp, 1); Serial.print(", ");
-  Serial.print(sen->Ta, 1); Serial.print(", ");
-  Serial.print(sen->Ta_filt, 1); Serial.print(", ");
-  Serial.print(sen->hum, 1); Serial.print(", ");
-  Serial.print(sen->pcnt_pot, 1); Serial.print(", ");
-  Serial.print(sen->OAT, 1); Serial.print(", ");
-  Serial.print(sun_wall->solar_heat(), 1); Serial.print(", ");
-  Serial.print(con->heat_o, 1); Serial.print(", ");
+  Serial.print(pubList.I2C_status, DEC); Serial.print(", ");
+  Serial.print(pubList.set, 1); Serial.print(", ");
+  Serial.print(pubList.Tp, 1); Serial.print(", ");
+  Serial.print(pubList.Ta, 1); Serial.print(", ");
+  Serial.print(pubList.Ta_filt, 1); Serial.print(", ");
+  Serial.print(pubList.hum, 1); Serial.print(", ");
+  Serial.print(pubList.pcnt_pot, 1); Serial.print(", ");
+  Serial.print(pubList.OAT, 1); Serial.print(", ");
+  Serial.print(pubList.solar_heat, 1); Serial.print(", ");
+  Serial.print(pubList.heat_o, 1); Serial.print(", ");
 }
