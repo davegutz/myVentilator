@@ -25,6 +25,9 @@
 //   This script contains curl link command.
 //   You may have to be logged into https://console.particle.io/devices
 //   to have necessary permissions to curl
+// install python 3.6.8 or earlier.   Use downloadable .exe file from 
+// python.org.   run by 'py curlParticle.py'.   May have to run 
+// py pip install pycurl certifi   and may have to upgrade pip.
 // The Particle files are in ../src
 clear
 clear globals
