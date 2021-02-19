@@ -25,7 +25,36 @@
 #ifndef _MY_SUBS_H
 #define _MY_SUBS_H
 
+#include "myRoom.h"
+#include "myFilters.h"
+#include <OneWire.h>
+#include <DS18.h>
+#include "myInsolation.h"
+
 enum Mode {POT, WEB, AUTO, SCHD}; // To keep track of mode
+
+
+// Pins
+struct Pins
+{
+  byte pin_1_wire;     // 1-wire Plenum temperature sensor
+  pin_t pwm_pin;       // Power the PWM transistor base via 300k resistor
+  byte status_led;     // On-board led
+  byte tach_sense;     // Sense ECMF speed
+  byte pot_trim;       // Trim Pot
+  byte pot_control;    // Control Pot
+  Pins(void) {}
+  Pins(byte pin_1_wire, pin_t pwm_pin, byte status_led, byte tach_sense, byte pot_trim, byte pot_control)
+  {
+    this->pin_1_wire = pin_1_wire;
+    this->pwm_pin = pwm_pin;
+    this->status_led = status_led;
+    this->tach_sense = tach_sense;
+    this->pot_trim = pot_trim;
+    this->pot_control = pot_control;
+  }
+};
+
 
 // Sensors
 struct Sensors
@@ -99,7 +128,18 @@ struct Control
   }
 };
  
-  
+
+// Weather data structure
+struct WeatherData
+{
+  String locationStr;
+  String weatherStr;
+  String tempStr;
+  String windStr;
+  String visStr;
+};
+
+
 // Publishing
 struct Publish
 {
@@ -131,9 +171,19 @@ struct Publish
   double lastChangedWebDmd;
   bool webHold;
   double webDmd;
+  WeatherData weatherData;
 };
+
 
 void publish_particle(unsigned long now);
 void serial_print_inputs(unsigned long now, double T);
+void serial_print(double cmd);
+boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, RoomTherm *room,
+      General2_Pole* TaSenseFilt, Insolation *sun_wall, DS18 *sensor_plenum, Pins *myPins);
+uint32_t pwm_write(uint32_t duty, Pins *myPins);
+void saveTemperature(const int set, const int webDmd, const int held, const int addr, double Ta_obs);
+String tryExtractString(String str, const char* start, const char* end);
+double  decimalTime(unsigned long *currentTime, char* tempStr);
+int setSaveDisplayTemp(double t, Sensors *sen, Control *con);
 
 #endif
