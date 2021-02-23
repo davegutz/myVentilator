@@ -40,17 +40,17 @@ DuctTherm::DuctTherm()
 
 DuctTherm::DuctTherm(const String name, const double ap_0, const double ap_1, const double ap_2,
     const double aq_0, const double aq_1, const double aq_2, const double duct_dia, const double duct_temp_drop,
-    const double mdot_lag_decr, const double mdot_lag_incr, const double mua, const double rhoa)
+    const double mdot_lag_decr, const double mdot_lag_incr, const double mua, const double rhoa, const double Smdot)
     : name_(name), ap_0_(ap_0), ap_1_(ap_1), ap_2_(ap_2), aq_0_(aq_0), aq_1_(aq_1), aq_2_(aq_2),
     duct_dia_(duct_dia), duct_temp_drop_(duct_temp_drop), mdot_lag_decr_(mdot_lag_decr),
-    mdot_lag_incr_(mdot_lag_incr), mua_(mua), rhoa_(rhoa)
+    mdot_lag_incr_(mdot_lag_incr), mua_(mua), rhoa_(rhoa), Smdot_(Smdot)
 {}
  
 // Calculate
 // Duct flow and temperature
 double DuctTherm::flow_model_(const double fan_speed, const double rhoa, const double mua)
 {
-    cfm_ = aq_2_ * fan_speed*fan_speed + aq_1_ * fan_speed + aq_0_;  // CFM
+    cfm_ = Smdot_*(aq_2_ * fan_speed*fan_speed + aq_1_ * fan_speed + aq_0_);  // CFM
     mdot_ = cfm_ * rhoa_ * 60;   // lbm/hr
     press_ = ap_2_ * fan_speed*fan_speed + ap_1_ * fan_speed + ap_0_; // in H2O
     vel_ = cfm_ / (3.1415926 * duct_dia_*duct_dia_ / 4) * 60;        // ft/hr
@@ -87,15 +87,15 @@ void DuctTherm::update(const int reset, const double T, const double Tp,  const 
 
 // Constructors
 RoomTherm::RoomTherm()
-  :   name_(""), cpa_(0), dn_tadot_(0), dn_twdot_(0), rsa_(0), rsai_(0),
-  rsao_(0), trans_conv_high_(0), trans_conv_low_(0)
+  :   name_(""), cpa_(0), dn_tadot_(0), dn_twdot_(0), Gconv_(0), rsa_(0), rsai_(0),
+  rsao_(0), Tk_(0), trans_conv_high_(0), trans_conv_low_(0)
 {}
 
-RoomTherm::RoomTherm(const String name, const double cpa, const double dn_tadot, const double dn_twdot, const double qcon,
-        const double qlk, const double rsa, const double rsai, const double rsao, const double trans_conv_low,
-        const double trans_conv_high)
+RoomTherm::RoomTherm(const String name, const double cpa, const double dn_tadot, const double dn_twdot, const double Gconv,
+    const double qcon, const double qlk, const double rsa, const double rsai, const double rsao, const double Tk,
+    const double trans_conv_low, const double trans_conv_high)
     : name_(name), cpa_(cpa), dn_tadot_(dn_tadot), dn_twdot_(dn_twdot), qcon_(qcon), qlk_(qlk), rsa_(rsa), rsai_(rsai),
-    rsao_(rsao), trans_conv_high_(trans_conv_high), trans_conv_low_(trans_conv_low)
+    rsao_(rsao), Tk_(Tk), trans_conv_high_(trans_conv_high), trans_conv_low_(trans_conv_low)
 {}
 
 // Two-state thermal model
@@ -107,12 +107,12 @@ void RoomTherm::update(const int reset, const double T, const double Tdso, const
     double qwo;        // Heat out of wall to OAT, BTU/hr
 
     // Input
-    qconv_ = (1. - max(min( (mdot - trans_conv_low_) / (trans_conv_high_ - trans_conv_low_), 1.), 0.)) * qcon_;
+    // qconv_ = (1. - max(min( (mdot - trans_conv_low_) / (trans_conv_high_ - trans_conv_low_), 1.), 0.)) * qcon_;
 
     // Flux
     if ( reset>0 )
     {
-        // Ta_ = max((mdot*cpa_*rsa_*Tdso + OAT - qlk_*rsa_ + qconv_*rsa_) / (mdot*cpa_*rsa_ + 1.), OAT);
+        // Ta_ = max((mdot*cpa_*rsa_*Tdso + OAT - qlk_*rsa_ + Tk_*Gconv_*rsa_) / (mdot*cpa_*rsa_ + 1. + Gconv_*rsa_), OAT);
         Ta_ = set;
         qai = (Ta_ - OAT) / rsa_;
         qao = qai;
@@ -125,6 +125,8 @@ void RoomTherm::update(const int reset, const double T, const double Tdso, const
     }
     qwi = (Ta_ - Tw_) / rsai_;
     qwo = (Tw_ - OAT) / rsao_;
+    qconv_ = Gconv_*(Tk_ - Ta_);
+
     
     // Derivatives
     double Ta_dot = (qai - qao - qwi - qlk_ + qconv_ + otherHeat) / dn_tadot_;

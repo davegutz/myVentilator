@@ -25,9 +25,6 @@
 //   This script contains curl link command.
 //   You may have to be logged into https://console.particle.io/devices
 //   to have necessary permissions to curl
-// install python 3.6.8 or earlier.   Use downloadable .exe file from 
-// python.org.   run by 'py curlParticle.py'.   May have to run 
-// py pip install pycurl certifi   and may have to upgrade pip.
 // The Particle files are in ../src
 clear
 clear globals
@@ -61,5 +58,8 @@ mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 // Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
 //run_name = 'vent_2021-01-31T19-25';
 //run_name = 'vent_2021-02-16T21-31'
-run_name = 'debug';
+//run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %t; dTw_init = -20; // close door at -60000; crack door at -59000; open door at -54000
+run_name = 'vent_2021-02-17T04-00_open_open_100';force_init_ta = %t; dTw_init = -20; // close door at -60000; crack door at -59000; open door at -54000
+
+//run_name = 'debug';
 exec('vent_data_reduce_driver.sce');

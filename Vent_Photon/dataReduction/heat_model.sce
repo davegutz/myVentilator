@@ -40,8 +40,8 @@ function [Qduct, mdot, hf, dMdot_dCmd] = flow_model(%cmd, rho, mu);
     // hf       Forced convection, BTU/hr/ft^2/F
     // rho      Density, lbm/ft^3
     // mu       Viscosity air, lbm/ft/hr
-    Qduct = -0.005153*%cmd^2 + 2.621644*%cmd;  // CFM
-    dQ_dCmd = 2*(-0.005153)*%cmd + 2.621644;
+    Qduct = M.Smdot*(-0.005153*%cmd^2 + 2.621644*%cmd);  // CFM
+    dQ_dCmd = M.Smdot*(2*(-0.005153)*%cmd + 2.621644);
     mdot = Qduct * rho * 60;   // lbm/hr
     dMdot_dQ = rho * 60;
     Pfan = 5.592E-05*%cmd^2 + 3.401E-03*%cmd - 2.102E-02;  // in H2O
@@ -263,9 +263,12 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Neglect duct heat effects
     // reset    Flag to indicate initialization
 
-    // Inputs
+    // Inputs.   In testing, close happens before crack happens before open
     [cfm, mdot_raw, hduct, dMdot_dCmd] = flow_model(%cmd, M.rhoa, M.mua);
-    
+    if time<M.t_door_crack & time>M.t_door_close then,
+        mdot_raw = 0;
+        cfm = 0;
+    end
     // Flow filter
     if reset then,
         mdot = mdot_raw;
@@ -282,11 +285,14 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Initialize
     // Qconv needed to match Ta_Sense to Ta
     // For linear model assume all these biases and values are constant operating conditions dY_dX = 0
-    // t1 = 600; t2 = 800;
-    t1 = 400; t2 = 700;
-    Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon;
+    //t1 = 400; t2 = 700;
+   // Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon;   //Rev 1c
     Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - (mdot_raw*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;
-    Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + Qconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + 1), OAT);
+    if time<M.t_door_open then,
+        Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa ) / (mdot*M.Cpa*M.Rsa + 1), OAT);
+    else
+        Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + M.Tk*M.Gconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + M.Gconv*M.Rsa + 1), OAT);
+    end
     Qaiss = (Tass - OAT) / M.Rsa;
     Twss = max(Tass - Qaiss * M.Rsai, OAT);
 
@@ -295,6 +301,13 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
         Qai = (Tass - OAT) / M.Rsa;
         Qao = Qai;
         Tw = Twss;
+        if force_init_ta then
+            Ta = ta_init;
+            Tass = Ta;
+            Qaiss = (Tass - OAT) / M.Rsa;
+            Twss = max(Tass - Qaiss * M.Rsai, OAT);
+            Tw = Twss;
+        end
     else
         Ta = M.Ta(i-1);
         Tw = M.Tw(i-1);
@@ -305,6 +318,8 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     //    Tmao = OAT + Qao / M.Hao;
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
+    Qconv = (M.Tk - Ta)*M.Gconv;
+    if time<M.t_door_open & time>M.t_door_close then, Qconv = 0; end
     
     // Derivatives
     dn_TaDot = 3600 * M.Cpa * M.Mair;

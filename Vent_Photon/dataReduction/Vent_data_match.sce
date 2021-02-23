@@ -75,6 +75,12 @@ if err then
 end
 mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 
+// Initialize model
+M="";C="";
+exec('heat_model_constants.sce');
+[M, C] = heat_model_define();
+
+
 // User inputs
 run_name = 'largeStepDecr_2021_02_04'
 run_name = 'vent_2021-02-05T17-00'
@@ -82,9 +88,15 @@ run_name = 'vent_2021-02-06T14-00'
 run_name = 'vent_2021-02-16T21-31'
 run_name = 'vent_2021-02-17T04-00'
 run_name = 'vent_2021-02-17T04-00_'
+
+// Fan on
+run_name = 'vent_2021-02-17T04-00_open_open_100';force_init_ta = %t; dTw_init = 0; M.t_door_close = -20741; M.t_door_crack =  -17130; M.t_door_open = -11000; M.Qlk = -200; M.Smdot = 0.4; // close door ; crack door ; open door 
+
+// Fan off
+run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; dTw_init = 0; M.t_door_open = -17642;M.Qlk = -672;  M.Smdot = 0.4;// close door at -60000;
+
 debug=2; plotting = %t; first_init_override = 1;
 closed_loop = %f;
-
 
 // Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
 //run_name = 'vent_2021-01-31T19-25';
@@ -104,12 +116,8 @@ last = D.N;
 B = load_buffer(D, first, last);
 B.N = size(B.time, 1);
 B.Tf = zeros(D.N, 1);
-
-// Initialize model
-M="";C="";
-exec('heat_model_constants.sce');
-[M, C] = heat_model_define();
 [M, C] = heat_model_init(M, C);
+
 
 // Main loop
 time_past = B.time(1);
@@ -134,6 +142,7 @@ for i=1:B.N,
     Tp = B.Tp_Sense(i);
     OAT = B.OAT(i);
     pcnt_pot = B.pcnt_pot(i);
+    ta_init = B.Ta_Sense(i);
     [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, duty, reset, M, i, B);
 
     // Linear  model stuff

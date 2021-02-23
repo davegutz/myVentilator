@@ -23,11 +23,13 @@
 
 // heat_model_constants.sce
 function [M, C] = heat_model_define()
+    M.R4 = 22.5;  // Resistance of R4 duct insulation, F-ft^2/BTU
     M.R8 = 45;  // Resistance of R8 duct insulation, F-ft^2/BTU
     // 5.68 F-ft^2/(BTU/hr).   R8 = 8*5.68 = 45 F-ft^2/(BTU/hr)
-    M.R16 = 90;  // Resistance of R8 duct insulation, F-ft^2/(BTU/hr)
-    M.R32 = 180;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
-    M.R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+    M.R12 = 68;  // Resistance of R12 duct insulation, F-ft^2/(BTU/hr)
+    M.R16 = 90;  // Resistance of R16 duct insulation, F-ft^2/(BTU/hr)
+    M.R32 = 180;  // Resistance of R32 wall insulation, F-ft^2/(BTU/hr)
+    M.R64 = 360;  // Resistance of R64 wall insulation, F-ft^2/(BTU/hr)
     M.Adli = 9;   // Surface area inner muffler box, ft^ft
     M.Adlo = 16;  // Surface area inner muffler box, ft^ft
     M.Adsi = 40;  // Surface area inner duct, ft^ft
@@ -40,6 +42,9 @@ function [M, C] = heat_model_define()
                 // NOTE:  probably need step data from two different flow conditions to triangulate this value.
 
     // Specific to simple model
+    //M.Rwall = M.R22;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+    //M.Rwall = M.R12; // Rev 1a
+    M.Rwall = M.R4; // Rev 1b
     M.Cpa = 0.23885; // Heat capacity of dry air at 80F, BTU/lbm/F (1.0035 J/g/K)
     M.Cpw = 0.2;  // Heat capacity of walls, BTU/lbm/F
     M.Aw = 12*12 + 7*12*3;   // Surface area room walls and ceiling, ft^2
@@ -49,22 +54,27 @@ function [M, C] = heat_model_define()
     M.rhoa = .0739;    // Density of dry air at 80F, lbm/ft^3
     M.mua = 0.04379;  // Viscosity air, lbm/ft/hr
     M.Mair = 8*12*12 * M.rhoa; // Mass of air in room, lbm
-    M.R22 = 125;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
     M.Duct_temp_drop = 7;  // Observed using infrared thermometer, F (7)
-    M.Qlk = 800;    // Model alignment heat loss, BTU/hr (800)
-    M.Qcon = (M.Qlk + 104) *.7;  // Model alignment heat gain when cmd = 0, BTU/hr. 
+ //   M.Qlk = -672;    // Model alignment heat loss, BTU/hr (800)
+    M.Qlk = 0;    // Model alignment heat loss, BTU/hr (800)
+//    M.Qcon = (M.Qlk + 104) *.7;  // Model alignment heat gain when cmd = 0, BTU/hr. 
     M.mdotl_incr = 360;  // Duct long term heat soak, s (360)   CoolTerm Capture 2021-01-21 14-12-19.xlsx
     M.mdotl_decr =  90;  // Duct long term heat soak, s (90)    data match activities
-    M.Rsa = 1/M.hi/M.Aw + M.R22/M.Aw + 1/M.ho/M.Aw;
+    M.Rsa = 1/M.hi/M.Aw + M.Rwall/M.Aw + 1/M.ho/M.Aw;
     M.Rsai = 1/M.hi/M.Aw;
-    M.Rsao = M.R22/M.Aw + 1/M.ho/M.Aw;
+    M.Rsao = M.Rwall/M.Aw + 1/M.ho/M.Aw;
 //    M.Hai = M.hi*M.Aw;
 //    M.Hao = M.ho*M.Aw;
-    
+    M.Gconv = 50;  // Convection gain, BTU/hr/F
+    M.Tk = 68;      // Kitchen temperature, F
     // Control law
     C.DB = 0.3;
     C.G = 0.03;
     C.tau = 600;
+    M.t_door_close = -%inf;
+    M.t_door_crack = -%inf;
+    M.t_door_open = -%inf;
+    M.Smdot = 1.0;     // Scale duct flow
 endfunction
 
 
