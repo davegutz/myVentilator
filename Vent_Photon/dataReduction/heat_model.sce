@@ -28,9 +28,6 @@
 // Mdl, mass of muffler box, lbm
 // Mds, mass of duct, lbm
 
-
-global figs D C P
-
 // Airflow model ECMF-150 6" duct at 50', bends, filters, muffler box
 // see ../datasheets/airflow model.xlsx
 function [Qduct, mdot, hf, dMdot_dCmd] = flow_model(%cmd, rho, mu);
@@ -263,9 +260,23 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Neglect duct heat effects
     // reset    Flag to indicate initialization
 
+    // Temp lag
+    Tdso_raw = max(Tp - M.Duct_temp_drop, M.min_tdso);
+    if reset then,
+        Tdso = Tdso_raw;
+    else
+        delta = Tdso_raw - M.Tdso(i-1);
+        if delta > 0 then d_td_dt = (delta)/M.mdotl_incr; else d_td_dt = delta/M.mdotl_decr; end  //(240 & 90)
+        Tdso = M.Tdso(i-1) + dt*d_td_dt;
+    end
+
     // Inputs.   In testing, close happens before crack happens before open
     [cfm, mdot_raw, hduct, dMdot_dCmd] = flow_model(%cmd, M.rhoa, M.mua);
     if time<M.t_door_crack & time>M.t_door_close then,
+        mdot_raw = 0;
+        cfm = 0;
+    end
+    if time<M.t_sys_on & time>M.t_sys_off then,
         mdot_raw = 0;
         cfm = 0;
     end
@@ -279,8 +290,13 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     end
     
     // Duct loss
-    Tdso = Tp - M.Duct_temp_drop;
     dTdso_dTp = 1;
+    //M.Tk = Tp;  /// DAG 2/24/2021
+   // M.Qlk = 300;
+    //M.Gconv = 10;
+    // Tk = M.Tk;
+    Tk = max(Tp - M.dTpTk, M.Tk);
+//    Tk = max(Tdso + M.Duct_temp_drop - M.dTpTk, M.Tk)
 
     // Initialize
     // Qconv needed to match Ta_Sense to Ta
@@ -288,13 +304,19 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     //t1 = 400; t2 = 700;
    // Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon;   //Rev 1c
     Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - (mdot_raw*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;
-    if time<M.t_door_open then,
-        Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa ) / (mdot*M.Cpa*M.Rsa + 1), OAT);
+    if time<M.t_door_open & time>M.t_door_close then,
+        Tass = max((mdot*M.Cpa*M.Rsa*Tdso - M.Qlkd*M.Rsa + OAT - M.Qlk*M.Rsa ) / (mdot*M.Cpa*M.Rsa + 1), OAT);
     else
-        Tass = max((mdot*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa + M.Tk*M.Gconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + M.Gconv*M.Rsa + 1), OAT);
+        Tass = max((mdot*M.Cpa*M.Rsa*Tdso - M.Qlkd*M.Rsa + OAT - M.Qlk*M.Rsa + Tk*M.Gconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + M.Gconv*M.Rsa + 1), OAT);
     end
     Qaiss = (Tass - OAT) / M.Rsa;
     Twss = max(Tass - Qaiss * M.Rsai, OAT);
+    
+    Qlk = M.Qlk;
+    Qlkd = M.Qlkd;
+    if mdot_raw==0 then
+        Qlkd = 0;
+    end
 
     if reset then,
         Ta = Tass;
@@ -311,22 +333,21 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     else
         Ta = M.Ta(i-1);
         Tw = M.Tw(i-1);
-        Qai = Tdso * M.Cpa * mdot;
-        Qao = Ta * M.Cpa * mdot;
+        Qai = Tdso * M.Cpa * mdot - Qlkd;
+        Qao = Ta * M.Cpa * mdot - Qlk;
     end
     //    Tmai = Ta - Qai / M.Hai;
     //    Tmao = OAT + Qao / M.Hao;
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
-    Qconv = (M.Tk - Ta)*M.Gconv;
+    Qconv = (Tk - Ta)*M.Gconv;
     if time<M.t_door_open & time>M.t_door_close then, Qconv = 0; end
     
     // Derivatives
     dn_TaDot = 3600 * M.Cpa * M.Mair;
     dn_TwDot = 3600 * M.Cpw * M.Mw;
-    TaDot = (Qai - Qao - Qwi - M.Qlk + Qconv) / dn_TaDot;
+    TaDot = (Qai - Qao - Qwi + Qconv) / dn_TaDot;
     TwDot = (Qwi - Qwo) / dn_TwDot;
-
     // Integrate
     Ta = min(max(Ta + dt*TaDot, OAT), Tdso);
     Tw = min(max(Tw + dt*TwDot, OAT), Tdso);
@@ -336,53 +357,53 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // inputs:  {mdot Tdso OAT}
     // outputs: {Ta}
 
-    dQai_dMdot = M.Cpa * Tdso;
-    dQai_dTdso = M.Cpa * mdot;
-    dQao_dMdot = M.Cpa * Ta;
-    dQao_dTa = M.Cpa * mdot;
-    dQwi_dTa = 1/M.Rsai;
-    dQwi_dTw = -1/M.Rsao;
-    dQwo_dTw = 1/M.Rsai;
-    dQwo_dOAT = -1/M.Rsao;
-
-    dTaDot_dQai = 1/dn_TaDot;
-    dTaDot_dQao = -1/dn_TaDot;
-    dTaDot_dQwi = -1/dn_TaDot;
-    dTwDot_dQwi = 1/dn_TwDot;
-    dTwDot_dQwo = -1/dn_TwDot;
-    
-    dTaDot_dTa = dTaDot_dQao * dQao_dTa  +  dTaDot_dQwi * dQwi_dTa;
-    dTaDot_dTw = dTaDot_dQwi * dQwi_dTw;
-    
-    dTwDot_dTw = dTwDot_dQwi * dQwi_dTw  +  dTwDot_dQwo * dQwo_dTw;
-    dTwDot_dTa = dTwDot_dQwi * dQwi_dTa;
-
-    dTaDot_dMdot = dTaDot_dQai * dQai_dMdot  +  dTaDot_dQao * dQao_dMdot;
-    dTaDot_dTdso = dTaDot_dQai * dQai_dTdso;
-    dTaDot_dOAT = 0;
-
-    dTwDot_dMdot = 0;
-    dTwDot_dTdso = 0;
-    dTwDot_dOAT = dTwDot_dQwo * dQwo_dOAT;
-    
-    dTa_dTa = 1;
-    dTa_dTw = 0;
-    
-    dTa_dMdot = 0;
-    dTa_dTdso = 0;
-    dTa_dOAT = 0;
-
-    // states:  {Ta  Tw}
-    // inputs:  {mdot Tdso OAT}
-    // outputs: {Ta}
-    a = [  dTaDot_dTa      dTaDot_dTw;
-           dTwDot_dTa      dTwDot_dTw  ];
-//    b = [  dTaDot_dMdot    dTaDot_dTdso    dTaDot_dOAT;
-//           dTwDot_dMdot    dTwDot_dTdso    dTwDot_dOAT ];
-    b = [  dTaDot_dMdot; dTwDot_dMdot];
-    c = [  dTa_dTa         dTa_dTw     ];
-//    e = [  dTa_dMdot       dTa_dTdso       dTa_dOAT];
-
+//    dQai_dMdot = M.Cpa * Tdso;
+//    dQai_dTdso = M.Cpa * mdot;
+//    dQao_dMdot = M.Cpa * Ta;
+//    dQao_dTa = M.Cpa * mdot;
+//    dQwi_dTa = 1/M.Rsai;
+//    dQwi_dTw = -1/M.Rsao;
+//    dQwo_dTw = 1/M.Rsai;
+//    dQwo_dOAT = -1/M.Rsao;
+//
+//    dTaDot_dQai = 1/dn_TaDot;
+//    dTaDot_dQao = -1/dn_TaDot;
+//    dTaDot_dQwi = -1/dn_TaDot;
+//    dTwDot_dQwi = 1/dn_TwDot;
+//    dTwDot_dQwo = -1/dn_TwDot;
+//    
+//    dTaDot_dTa = dTaDot_dQao * dQao_dTa  +  dTaDot_dQwi * dQwi_dTa;
+//    dTaDot_dTw = dTaDot_dQwi * dQwi_dTw;
+//    
+//    dTwDot_dTw = dTwDot_dQwi * dQwi_dTw  +  dTwDot_dQwo * dQwo_dTw;
+//    dTwDot_dTa = dTwDot_dQwi * dQwi_dTa;
+//
+//    dTaDot_dMdot = dTaDot_dQai * dQai_dMdot  +  dTaDot_dQao * dQao_dMdot;
+//    dTaDot_dTdso = dTaDot_dQai * dQai_dTdso;
+//    dTaDot_dOAT = 0;
+//
+//    dTwDot_dMdot = 0;
+//    dTwDot_dTdso = 0;
+//    dTwDot_dOAT = dTwDot_dQwo * dQwo_dOAT;
+//    
+//    dTa_dTa = 1;
+//    dTa_dTw = 0;
+//    
+//    dTa_dMdot = 0;
+//    dTa_dTdso = 0;
+//    dTa_dOAT = 0;
+//
+//    // states:  {Ta  Tw}
+//    // inputs:  {mdot Tdso OAT}
+//    // outputs: {Ta}
+//    a = [  dTaDot_dTa      dTaDot_dTw;
+//           dTwDot_dTa      dTwDot_dTw  ];
+////    b = [  dTaDot_dMdot    dTaDot_dTdso    dTaDot_dOAT;
+////           dTwDot_dMdot    dTwDot_dTdso    dTwDot_dOAT ];
+//    b = [  dTaDot_dMdot; dTwDot_dMdot];
+//    c = [  dTa_dTa         dTa_dTw     ];
+////    e = [  dTa_dMdot       dTa_dTdso       dTa_dOAT];
+a=1;b=1;c=1;e=1;
     // Save / store
     M.time(i) = time;
     M.dt(i) = dt;

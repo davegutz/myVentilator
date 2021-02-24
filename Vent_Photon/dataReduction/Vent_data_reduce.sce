@@ -27,6 +27,7 @@
 //   to have necessary permissions to curl
 // The Particle files are in ../src
 clear
+clear figs D C P
 clear globals
 mclose('all')
 funcprot(0);
@@ -36,8 +37,8 @@ exec('overplot.sce');
 exec('serial_print.sce');
 exec('plotting.sce');
 exec('export_figs.sci');
+global figs
 
-global figs D C P
 try close(figs); end
 figs=[];
 try
@@ -59,7 +60,7 @@ mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 //run_name = 'vent_2021-01-31T19-25';
 //run_name = 'vent_2021-02-16T21-31'
 //run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %t; dTw_init = -20; // close door at -60000; crack door at -59000; open door at -54000
-run_name = 'vent_2021-02-17T04-00_open_open_100';force_init_ta = %t; dTw_init = -20; // close door at -60000; crack door at -59000; open door at -54000
+//run_name = 'vent_2021-02-17T04-00_open_open_100';force_init_ta = %t; dTw_init = -20; // close door at -60000; crack door at -59000; open door at -54000
 
-//run_name = 'debug';
+run_name = 'debug';
 exec('vent_data_reduce_driver.sce');

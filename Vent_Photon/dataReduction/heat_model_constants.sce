@@ -56,7 +56,8 @@ function [M, C] = heat_model_define()
     M.Mair = 8*12*12 * M.rhoa; // Mass of air in room, lbm
     M.Duct_temp_drop = 7;  // Observed using infrared thermometer, F (7)
  //   M.Qlk = -672;    // Model alignment heat loss, BTU/hr (800)
-    M.Qlk = 0;    // Model alignment heat loss, BTU/hr (800)
+    M.Qlk = -500;    // Model alignment heat loss, BTU/hr (800)
+    M.Qlkd = 0;
 //    M.Qcon = (M.Qlk + 104) *.7;  // Model alignment heat gain when cmd = 0, BTU/hr. 
     M.mdotl_incr = 360;  // Duct long term heat soak, s (360)   CoolTerm Capture 2021-01-21 14-12-19.xlsx
     M.mdotl_decr =  90;  // Duct long term heat soak, s (90)    data match activities
@@ -67,14 +68,18 @@ function [M, C] = heat_model_define()
 //    M.Hao = M.ho*M.Aw;
     M.Gconv = 50;  // Convection gain, BTU/hr/F
     M.Tk = 68;      // Kitchen temperature, F
+    M.dTpTk = 0;
+    M.min_tdso = 68;
+    M.t_door_close = -%inf;
+    M.t_door_crack = -%inf;
+    M.t_door_open = -%inf;
+    M.t_sys_off = -%inf;
+    M.t_sys_on = -%inf;
+    M.Smdot = 1.0;     // Scale duct flow
     // Control law
     C.DB = 0.3;
     C.G = 0.03;
     C.tau = 600;
-    M.t_door_close = -%inf;
-    M.t_door_crack = -%inf;
-    M.t_door_open = -%inf;
-    M.Smdot = 1.0;     // Scale duct flow
 endfunction
 
 

@@ -67,6 +67,7 @@ function [D, TD, first] = load_data(data_t, data_d)
     D.solar_heat = data_d(:, 17);
     D.heat_o = data_d(:, 18);
     D.cmd_scaled = D.cmd/100*20+60;
+    D.duty_scaled = D.duty/400*20+60;
     first = 1;
 endfunction
 

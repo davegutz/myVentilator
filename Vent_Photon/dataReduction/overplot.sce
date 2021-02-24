@@ -141,3 +141,16 @@ function unzoom_all(%figs)
         end
     end
 endfunction
+
+// Create plot vectors
+function P = map_all_plots(P, D, Dname)
+    allfields = getfield(1, D);
+    found_time = %f;
+    i_time = find(allfields(:)=='time');
+    n_time = size(allfields, 2);
+    for i = i_time:n_time,
+        field = allfields(i);
+        execstr('P.' + Dname + '.' + field + ' = struct(''time'', ' + Dname + '.time, ''values'', ' + Dname + '.' + field + ');');
+    end
+endfunction
+

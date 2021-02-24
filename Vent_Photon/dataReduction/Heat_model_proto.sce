@@ -105,33 +105,7 @@ function plot_all(%zoom, %loc)
         end
     end
     
-    P.C.cmd = struct('time', C.time, 'values', C.cmd);
-    P.C.hduct = struct('time', C.time, 'values', C.hduct);
-    P.C.mdotd = struct('time', C.time, 'values', C.mdotd);
-    P.C.cfm = struct('time', C.time, 'values', C.cfm);
-    P.C.Tp = struct('time', C.time, 'values', C.Tp);
-    P.C.Tbl = struct('time', C.time, 'values', C.Tbl);
-    P.C.Tml = struct('time', C.time, 'values', C.Tml);
-    P.C.Tbs = struct('time', C.time, 'values', C.Tbs);
-    P.C.Tms = struct('time', C.time, 'values', C.Tms);
-    P.C.Tdsi = struct('time', C.time, 'values', C.Tdsi);
-    P.C.Tdso = struct('time', C.time, 'values', C.Tdso);
-    P.C.Ta = struct('time', C.time, 'values', C.Ta);
-    P.C.Tw = struct('time', C.time, 'values', C.Tw);
-    P.C.OAT = struct('time', C.time, 'values', C.OAT);
-    P.C.Qdli = struct('time', C.time, 'values', C.Qdli);
-    P.C.Qdlo = struct('time', C.time, 'values', C.Qdlo);
-    P.C.Qdsi = struct('time', C.time, 'values', C.Qdsi);
-    P.C.Qdso = struct('time', C.time, 'values', C.Qdso);
-    P.C.Qai = struct('time', C.time, 'values', C.Qai);
-    P.C.Qao = struct('time', C.time, 'values', C.Qao);
-    P.C.Qwi = struct('time', C.time, 'values', C.Qwi);
-    P.C.Qwo = struct('time', C.time, 'values', C.Qwo);
-    P.C.TmlDot = struct('time', C.time, 'values', C.TmlDot);
-    P.C.TmsDot = struct('time', C.time, 'values', C.TmsDot);
-    P.C.TaDot = struct('time', C.time, 'values', C.TaDot);
-    P.C.TwDot = struct('time', C.time, 'values', C.TwDot);
-    P.C.QaiMQao = struct('time', C.time, 'values', C.QaiMQao);
+    P = map_all_plots(P, C, 'C');
 
     plot_heat(%zoom, %loc + [30 30]);
 endfunction
