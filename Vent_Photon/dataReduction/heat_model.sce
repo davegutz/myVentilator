@@ -272,16 +272,17 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Inputs.   In testing, close happens before crack happens before open
     [cfm, mdot_raw, hduct, dMdot_dCmd] = flow_model(%cmd, M.rhoa, M.mua);
     flow_blocked = (time<M.t_door_crack & time>M.t_door_close) || ...
-                   (time<M.t_sys_on & time>M.t_sys_off) || ...
                    (time<M.t_door_open & time>M.t_door_close);
-    if  flow_blocked then,
+    flow_off = (time<M.t_sys_on & time>M.t_sys_off);
+    if  flow_blocked || flow_off then,
         mdot_raw = 0;
         cfm = 0;
     end
 
-    // Turn convction on/off
+    // Turn convection on/off
     Sconv = (1-max(min((mdot_raw-M.t1)/(M.t2-M.t1), 1), 0));
-
+    if flow_blocked then Sconv = 0; end
+    
     // Flow filter
     if reset then,
         mdot = mdot_raw;
@@ -338,7 +339,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
     Qconv = (Tk - Ta)*M.Gconv*Sconv;
-    Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - ((mdot_raw*M.Cpa*Tdso  - Qlkd + Qlk)*M.Rsa + OAT) ) / M.Rsa;
+    Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + M.Gconv*Sconv*M.Rsa + M.Glk*M.Rsa + 1) - ((mdot_raw*M.Cpa*Tdso  - Qlkd + M.Qlk + M.Glk*Tk)*M.Rsa + OAT + Tk*M.Gconv*Sconv*M.Rsa) ) / M.Rsa;
 
     // Derivatives
     dn_TaDot = 3600 * M.Cpa * M.Mair;
@@ -348,7 +349,8 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Integrate
     Ta = min(max(Ta + dt*TaDot, OAT), Tdso);
     Tw = min(max(Tw + dt*TwDot, OAT), Tdso);
-//if time>-18000 then, pause; end
+//if reset | time>-17500 then, pause; end
+//if time>-20000 then, pause; end
     // Consolidate the linear model
     // states:  {Ta  Tw}
     // inputs:  {mdot Tdso OAT}
@@ -424,5 +426,5 @@ a=1;b=1;c=1;e=1;
     M.Twss(i) = Twss;
     M.Qleak(i) = Qlk;
     M.QleakD(i) = Qlkd;
-
+    M.Tkit(i) = Tk;
 end

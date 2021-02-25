@@ -95,12 +95,14 @@ force_init_ta = %f;
 // Fan on
 //run_name = 'vent_2021-02-17T04-00_open_open_100';force_init_ta = %t; dTw_init = 0; M.t_door_close = -20741; M.t_door_crack =  -17130; M.t_door_open = -11000; M.Qlk = 200; M.Smdot = 0.4; // close door ; crack door ; open door 
 
-// Fan off;   close door at -60000;
-//run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; dTw_init = 0; M.t_door_open = -17642;M.Qlk = 672;  M.Smdot = 0.4;
-run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; M.dTpTk = 80; dTw_init = 0; M.t_door_open = -17642;M.Qlk = 672;  M.Smdot = 0.4; M.Glk = 50; M.Gconv = 1000; M.Qlk = 669-15.4*(M.Gconv+M.Glk); M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
+// Fan off;   open door at -17642;  Fan comes on at -11040
+//run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; dTw_init = 0; M.t_door_open = -17642; M.Qlk = 672;  M.Smdot = 0.4;
+//run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; M.dTpTk = 80; dTw_init = 0; M.t_door_open = -17642; M.Smdot = 0.4; M.Tk = 68; M.Glk = 50; M.Gconv = 60; M.Qlk = 669-15.4*M.Glk; M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
+run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; M.dTpTk = 80; dTw_init = 0; M.t_door_open = -17642; M.Smdot = 1.0; M.Tk = 68; M.Glk = 50; M.Gconv = 60; M.Qlk = 669-15.4*M.Glk; M.Glkd = 100;  M.Qlkd = 900-42.73*M.Glkd;
 
 // Retune?
-//run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720;force_init_ta = %f; M.dTpTk = 80;M.Gconv = 20; M.mdotl_decr = 6000; M.Qlk = 0; M.Glk = 50; M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
+//run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720;force_init_ta = %f; M.dTpTk = 80; M.Gconv = 20; M.mdotl_decr = 6000; M.Qlk = 0; M.Glk = 50; M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
+//run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720;force_init_ta = %f; M.dTpTk = 80;M.Gconv = 60; M.mdotl_decr = 6000; M.Qlk = -100; M.Glk = 50; M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
 
 debug=2; plotting = %t; first_init_override = 1;
 closed_loop = %f;

@@ -124,4 +124,5 @@ function [M, C] = heat_model_init(M, C)
     C.duty = zeros(B.N, 1);
     C.integ = zeros(B.N, 1);
     C.prop = zeros(B.N, 1);
+    M.Tkit = zeros(B.N, 1);
 endfunction
