@@ -20,13 +20,207 @@
 // Feb 1, 2021    DA Gutz        Created
 // 
 
-// Heat model
-// Tdl temp of large duct mass Mdl, considered to be the muffler box, F
-// Tds temp of small duct mass Mds, considered to be the lenght of 6" duct, F
-// Rdl coefficient of thermal transfer, BTU/hr/F/ft^2
-// Rds coefficient of thermal transfer, BTU/hr/F/ft^2
-// Mdl, mass of muffler box, lbm
-// Mds, mass of duct, lbm
+//// Heat model
+//// Tdl temp of large duct mass Mdl, considered to be the muffler box, F
+//// Tds temp of small duct mass Mds, considered to be the lenght of 6" duct, F
+//// Rdl coefficient of thermal transfer, BTU/hr/F/ft^2
+//// Rds coefficient of thermal transfer, BTU/hr/F/ft^2
+//// Mdl, mass of muffler box, lbm
+//// Mds, mass of duct, lbm
+//
+//// Will be tuned to match data.   Using physics-based form
+//// to get the structure correct.   Some numbers are approximate.
+//function C = heat_proto(debug)
+//// Major assumptions:
+////      Attic temperature same as OAT
+////      Fan/duct airflow and pressure instantaneous response to cmd
+////      Air at 80F.   Apply 75F models to 80F
+////      Uniform mixing of duct air into room
+////      Bulk temperatures of air in muffler and duct are the supply temps
+////      Neglect radiation (we're only trying to get the shape right, then match)
+////      Insulation mass Tb splits the R-value between inside and outside transfer
+////      Neglect convection draft from Kitchen that occurs at very low mdot
+//    Aw = 12*12 + 7*12*3;   // Surface area room walls and ceiling, ft^2
+//    Adli = 9;   // Surface area inner muffler box, ft^ft
+//    Adlo = 16;  // Surface area inner muffler box, ft^ft
+//    Adsi = 40;  // Surface area inner duct, ft^ft
+//    Adso = 150/2; // Surface area inner duct, ft^ft  (half buried)
+//    Cpa = 0.23885; // Heat capacity of dry air at 80F, BTU/lbm/F (1.0035 J/g/K)
+//    Cpl = 0.2;  // Heat capacity of muffler box, BTU/lbm/F
+//    Cps = 0.4;  // Heat capacity of duct insulation, BTU/lbm/F
+//    Cpw = 0.2;  // Heat capacity of walls, BTU/lbm/F
+//    Mw = 1000;  // Mass of room ws and ceiling, lbm (1000)
+//    Mdl = 50;   // Mass of muffler box, lbm (50)
+//    Mds = 20;  // Mass of duct, lbm (100)
+//    hf = 1;     // TBD.  Rdf = hf*log10(mdot);    // Boundary layer heat resistance forced convection, BTU/hr/ft^2/F
+//                // NOTE:  probably need step data from two different flow conditions to triangulate this value.
+//    hi = 1.4;   // Heat transfer resistance inside still air, BTU/hr/ft^2/F.  Approx industry avg
+//    ho = 4.4;   // Heat transfer resistance outside still air, BTU/hr/ft^2/F.  Approx industry avg
+//    rhoa = .0739;    // Density of dry air at 80F, lbm/ft^3
+//    mua = 0.04379;  // Viscosity air, lbm/ft/hr
+//    Mair = 8*12*12 * rhoa; // Mass of air in room, lbm
+//    
+//    R8 = 45;  // Resistance of R8 duct insulation, F-ft^2/BTU
+//    // 5.68 F-ft^2/(BTU/hr).   R8 = 8*5.68 = 45 F-ft^2/(BTU/hr)
+//    R16 = 90;  // Resistance of R8 duct insulation, F-ft^2/(BTU/hr)
+//    R22 = 125;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+//    R32 = 180;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+//    R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
+//    
+//    //mdotd     Mass flow rate of air through duct, lbm/sec
+//    // Pfan     Fan pressure, in H20 at 75F, assume = 80F
+//    // Qduct    Duct = Fan airflow, CFM at 75F, assume = 80F
+//    // Tp       Plenum temperature, F
+//    // Ta       Sunshine Room temperature, F
+//    // Tdo      Duct discharge temp, F
+//    // Tbs      Small duct bulk air temp, F
+//    // Tbl      Muffler bulk air temp, F
+//    
+//    
+//    // Rdf model:
+//    //  R ~ 2 - 100  BTU/hr/ft^2/F
+//    
+//    // Loop for time transient
+//    dt = 10;   // sec time step
+//    Tp = 80;  // Duct supply, plenum temperature, F
+//    plotting = 1;
+//    run_name = 'heat_model';
+//    
+//    //pause
+//    
+//    // Initialize
+//    OAT = 30;   // Outside air temperature, F
+//    cmdi = 90;
+//    cmdf = 100;
+//    
+//    Rsl = 1/hi/Adli + R22/2/Adli + R22/2/Adlo + 1/ho/Adlo;
+//    Rsli = 1/hi/Adli + R22/2/Adli;
+//    Rslo = R22/2/Adlo + 1/ho/Adlo;
+//    Hdso = ho*Adso;
+//    
+//    Rsa = 1/hi/Aw + R22/Aw + 1/ho/Aw;
+//    Rsai = 1/hi/Aw;
+//    Rsao = R22/Aw + 1/ho/Aw;
+//    Hai = hi*Aw;
+//    Hao = ho*Aw;
+//    
+//    C = "";
+//    for time = 0:dt:3600*16
+//        
+//        if time<1000 then, cmd = cmdi; else cmd = cmdf;  end
+//        [cfm, mdotd, hduct] = flow_model(cmd, rhoa, mua);
+//        Tdli = Tp;
+//        Tbl = Tp;
+//        Hdli = hduct*Adli;
+//        Hdsi = hduct*Adsi;
+//        Rss = 1/hduct/Adsi + R8/2/Adsi +R8/2/Adso + 1/ho/Adso;
+//        Rssi = 1/hduct/Adsi + R8/2/Adsi;
+//        Rsso = R8/2/Adso + 1/ho/Adso;
+//        Hdlo = ho*Adlo;
+//    
+//        // Init logic
+//        if time<1e-12, then
+//    
+//            // Exact solution muffler box
+//            Tdli = Tp;
+//            Tbl = (2*mdotd*Cpa*Rsl*Tdli + OAT) / (2*mdotd*Cpa*Rsl + 1);
+//            Qdl = (Tbl - OAT) / Rsl;
+//            Tml = Tbl - Qdl * Rsli;
+//            Tmli = Tbl - Qdl / Hdli;
+//            Tmlo = OAT + Qdl / Hdlo;
+//            Tdlo = 2*Tbl - Tdli;
+//            Qdla = (Tdli - Tdlo)*mdotd*Cpa;  // BTU/hr
+//                    
+//            // Exact solution duct
+//            Tdsi = Tdlo;
+//            Tbs = (2*mdotd*Cpa*Rss*Tdsi + OAT) / (2*mdotd*Cpa*Rss + 1);
+//            Qds = (Tbs - OAT) / Rss;
+//            Tms = Tbs - Qds * Rssi;
+//    //        Tmsi = Tbs - Qds / Hdsi;
+//    //        Tmso = OAT + Qds / Hdso;
+//            Tdso = 2*Tbs - Tdsi;
+//            Qdsa = (Tdsi - Tdso)*mdotd*Cpa;  // BTU/hr
+//    
+//            // Exact solution room
+//            Ta = (mdotd*Cpa*Rsa*Tdso + OAT) / (mdotd*Cpa*Rsa + 1);
+//            Qa = (Ta - OAT) / Rsa;
+//            Tw = Ta - Qa * Rsai;
+//            Tmai = Ta - Qa / Hai;
+//            Tmao = OAT + Qa / Hao;
+//            Qai = Tdso*mdotd*Cpa;
+//            Qao = Ta*mdotd*Cpa;
+//    
+//        end
+//    
+//        // Flux
+//        Tbl = (2*mdotd*Cpa*Rsli*Tdli + Tml) / (2*mdotd*Cpa*Rsli + 1);
+//        Qdli = (Tbl - Tml) / Rsli;
+//        Qdlo = (Tml - OAT) / Rslo;
+//        Tdlo = 2*Tbl - Tdli;
+//    
+//        Tdsi = Tdlo;
+//        Tbs = (2*mdotd*Cpa*Rssi*Tdsi + Tms) / (2*mdotd*Cpa*Rssi + 1);
+//        Qdsi = (Tbs - Tms) / Rssi;
+//        Qdso = (Tms - OAT) / Rsso;
+//        Tdso = 2*Tbs - Tdsi;
+//    
+//        Qai = Tdso * Cpa * mdotd;
+//        Qao = Ta * Cpa * mdotd;
+//    
+//        Qwi = (Ta - Tw) / Rsai;
+//        Qwo = (Tw - OAT) / Rsao;
+//    
+//        // Derivatives
+//        TmlDot = (Qdli - Qdlo)/3600 / (Cpl * Mdl);
+//        TmsDot = (Qdsi - Qdso)/3600 / (Cps * Mds);
+//        TaDot = (Qai - Qao - Qwi)/3600 / (Cpa * Mair);
+//        TwDot = (Qwi - Qwo)/3600 / (Cpw * Mw);
+//    
+//        // Store results
+//        if debug>2 then
+//            if time==0 then, printf('  time,      cmd,   hduct,   cfm,    mdotd,   Tp,      Tbl,     Tml,     Tbs,     Tms,     Tdso,    Ta,        Tw,      OAT,\n'); end
+//            printf('%7.1f, %7.1f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f,\n',...
+//                time, cmd, hduct, cfm, mdotd, Tp, Tbl, Tml, Tbs, Tms, Tdso, Ta, Tw, OAT);
+//        end
+//
+//        C.time($+1) = time;
+//        C.cmd($+1) = cmd;
+//        C.hduct($+1) = hduct;
+//        C.cfm($+1) = cfm;
+//        C.mdotd($+1) = mdotd;
+//        C.Tp($+1) = Tp;
+//        C.Tbl($+1) = Tbl;
+//        C.Tml($+1) = Tml;
+//        C.Tbs($+1) = Tbs;
+//        C.Tms($+1) = Tms;
+//        C.Tdso($+1) = Tdso;
+//        C.Tdsi($+1) = Tdsi;
+//        C.Ta($+1) = Ta;
+//        C.Tw($+1) = Tw;
+//        C.OAT($+1) = OAT;
+//        C.Qdli($+1) = Qdli;
+//        C.Qdlo($+1) = Qdlo;
+//        C.Qdsi($+1) = Qdsi;
+//        C.Qdso($+1) = Qdso;
+//        C.Qai($+1) = Qai;
+//        C.Qao($+1) = Qao;
+//        C.Qwi($+1) = Qwi;
+//        C.Qwo($+1) = Qwo;
+//        C.TmlDot($+1) = TmlDot;
+//        C.TmsDot($+1) = TmsDot;
+//        C.TaDot($+1) = TaDot;
+//        C.TwDot($+1) = TwDot;
+//        C.QaiMQao($+1) = Qai-Qao;
+//        
+//        // Integrate
+//        Tml = min(max(Tml + dt*TmlDot, OAT), Tbl);
+//        Tms = min(max(Tms + dt*TmsDot, OAT), Tbs);
+//        Ta = min(max(Ta + dt*TaDot, Tw), Tdso);
+//        Tw = min(max(Tw + dt*TwDot, OAT), Ta);
+//    
+//    
+//    end
+//endfunction
 
 // Airflow model ECMF-150 6" duct at 50', bends, filters, muffler box
 // see ../datasheets/airflow model.xlsx
@@ -60,201 +254,6 @@ function [Qduct, mdot, hf, dMdot_dCmd] = flow_model(%cmd, rho, mu);
     dMdot_dCmd = dQ_dCmd * dMdot_dQ;
 endfunction
 
-// Will be tuned to match data.   Using physics-based form
-// to get the structure correct.   Some numbers are approximate.
-function C = heat_proto(debug)
-// Major assumptions:
-//      Attic temperature same as OAT
-//      Fan/duct airflow and pressure instantaneous response to cmd
-//      Air at 80F.   Apply 75F models to 80F
-//      Uniform mixing of duct air into room
-//      Bulk temperatures of air in muffler and duct are the supply temps
-//      Neglect radiation (we're only trying to get the shape right, then match)
-//      Insulation mass Tb splits the R-value between inside and outside transfer
-//      Neglect convection draft from Kitchen that occurs at very low mdot
-    Aw = 12*12 + 7*12*3;   // Surface area room walls and ceiling, ft^2
-    Adli = 9;   // Surface area inner muffler box, ft^ft
-    Adlo = 16;  // Surface area inner muffler box, ft^ft
-    Adsi = 40;  // Surface area inner duct, ft^ft
-    Adso = 150/2; // Surface area inner duct, ft^ft  (half buried)
-    Cpa = 0.23885; // Heat capacity of dry air at 80F, BTU/lbm/F (1.0035 J/g/K)
-    Cpl = 0.2;  // Heat capacity of muffler box, BTU/lbm/F
-    Cps = 0.4;  // Heat capacity of duct insulation, BTU/lbm/F
-    Cpw = 0.2;  // Heat capacity of walls, BTU/lbm/F
-    Mw = 1000;  // Mass of room ws and ceiling, lbm (1000)
-    Mdl = 50;   // Mass of muffler box, lbm (50)
-    Mds = 20;  // Mass of duct, lbm (100)
-    hf = 1;     // TBD.  Rdf = hf*log10(mdot);    // Boundary layer heat resistance forced convection, BTU/hr/ft^2/F
-                // NOTE:  probably need step data from two different flow conditions to triangulate this value.
-    hi = 1.4;   // Heat transfer resistance inside still air, BTU/hr/ft^2/F.  Approx industry avg
-    ho = 4.4;   // Heat transfer resistance outside still air, BTU/hr/ft^2/F.  Approx industry avg
-    rhoa = .0739;    // Density of dry air at 80F, lbm/ft^3
-    mua = 0.04379;  // Viscosity air, lbm/ft/hr
-    Mair = 8*12*12 * rhoa; // Mass of air in room, lbm
-    
-    R8 = 45;  // Resistance of R8 duct insulation, F-ft^2/BTU
-    // 5.68 F-ft^2/(BTU/hr).   R8 = 8*5.68 = 45 F-ft^2/(BTU/hr)
-    R16 = 90;  // Resistance of R8 duct insulation, F-ft^2/(BTU/hr)
-    R22 = 125;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
-    R32 = 180;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
-    R64 = 360;  // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)
-    
-    //mdotd     Mass flow rate of air through duct, lbm/sec
-    // Pfan     Fan pressure, in H20 at 75F, assume = 80F
-    // Qduct    Duct = Fan airflow, CFM at 75F, assume = 80F
-    // Tp       Plenum temperature, F
-    // Ta       Sunshine Room temperature, F
-    // Tdo      Duct discharge temp, F
-    // Tbs      Small duct bulk air temp, F
-    // Tbl      Muffler bulk air temp, F
-    
-    
-    // Rdf model:
-    //  R ~ 2 - 100  BTU/hr/ft^2/F
-    
-    // Loop for time transient
-    dt = 10;   // sec time step
-    Tp = 80;  // Duct supply, plenum temperature, F
-    plotting = 1;
-    run_name = 'heat_model';
-    
-    //pause
-    
-    // Initialize
-    OAT = 30;   // Outside air temperature, F
-    cmdi = 90;
-    cmdf = 100;
-    
-    Rsl = 1/hi/Adli + R22/2/Adli + R22/2/Adlo + 1/ho/Adlo;
-    Rsli = 1/hi/Adli + R22/2/Adli;
-    Rslo = R22/2/Adlo + 1/ho/Adlo;
-    Hdso = ho*Adso;
-    
-    Rsa = 1/hi/Aw + R22/Aw + 1/ho/Aw;
-    Rsai = 1/hi/Aw;
-    Rsao = R22/Aw + 1/ho/Aw;
-    Hai = hi*Aw;
-    Hao = ho*Aw;
-    
-    C = "";
-    for time = 0:dt:3600*16
-        
-        if time<1000 then, cmd = cmdi; else cmd = cmdf;  end
-        [cfm, mdotd, hduct] = flow_model(cmd, rhoa, mua);
-        Tdli = Tp;
-        Tbl = Tp;
-        Hdli = hduct*Adli;
-        Hdsi = hduct*Adsi;
-        Rss = 1/hduct/Adsi + R8/2/Adsi +R8/2/Adso + 1/ho/Adso;
-        Rssi = 1/hduct/Adsi + R8/2/Adsi;
-        Rsso = R8/2/Adso + 1/ho/Adso;
-        Hdlo = ho*Adlo;
-    
-        // Init logic
-        if time<1e-12, then
-    
-            // Exact solution muffler box
-            Tdli = Tp;
-            Tbl = (2*mdotd*Cpa*Rsl*Tdli + OAT) / (2*mdotd*Cpa*Rsl + 1);
-            Qdl = (Tbl - OAT) / Rsl;
-            Tml = Tbl - Qdl * Rsli;
-            Tmli = Tbl - Qdl / Hdli;
-            Tmlo = OAT + Qdl / Hdlo;
-            Tdlo = 2*Tbl - Tdli;
-            Qdla = (Tdli - Tdlo)*mdotd*Cpa;  // BTU/hr
-                    
-            // Exact solution duct
-            Tdsi = Tdlo;
-            Tbs = (2*mdotd*Cpa*Rss*Tdsi + OAT) / (2*mdotd*Cpa*Rss + 1);
-            Qds = (Tbs - OAT) / Rss;
-            Tms = Tbs - Qds * Rssi;
-    //        Tmsi = Tbs - Qds / Hdsi;
-    //        Tmso = OAT + Qds / Hdso;
-            Tdso = 2*Tbs - Tdsi;
-            Qdsa = (Tdsi - Tdso)*mdotd*Cpa;  // BTU/hr
-    
-            // Exact solution room
-            Ta = (mdotd*Cpa*Rsa*Tdso + OAT) / (mdotd*Cpa*Rsa + 1);
-            Qa = (Ta - OAT) / Rsa;
-            Tw = Ta - Qa * Rsai;
-            Tmai = Ta - Qa / Hai;
-            Tmao = OAT + Qa / Hao;
-            Qai = Tdso*mdotd*Cpa;
-            Qao = Ta*mdotd*Cpa;
-    
-        end
-    
-        // Flux
-        Tbl = (2*mdotd*Cpa*Rsli*Tdli + Tml) / (2*mdotd*Cpa*Rsli + 1);
-        Qdli = (Tbl - Tml) / Rsli;
-        Qdlo = (Tml - OAT) / Rslo;
-        Tdlo = 2*Tbl - Tdli;
-    
-        Tdsi = Tdlo;
-        Tbs = (2*mdotd*Cpa*Rssi*Tdsi + Tms) / (2*mdotd*Cpa*Rssi + 1);
-        Qdsi = (Tbs - Tms) / Rssi;
-        Qdso = (Tms - OAT) / Rsso;
-        Tdso = 2*Tbs - Tdsi;
-    
-        Qai = Tdso * Cpa * mdotd;
-        Qao = Ta * Cpa * mdotd;
-    
-        Qwi = (Ta - Tw) / Rsai;
-        Qwo = (Tw - OAT) / Rsao;
-    
-        // Derivatives
-        TmlDot = (Qdli - Qdlo)/3600 / (Cpl * Mdl);
-        TmsDot = (Qdsi - Qdso)/3600 / (Cps * Mds);
-        TaDot = (Qai - Qao - Qwi)/3600 / (Cpa * Mair);
-        TwDot = (Qwi - Qwo)/3600 / (Cpw * Mw);
-    
-        // Store results
-        if debug>2 then
-            if time==0 then, printf('  time,      cmd,   hduct,   cfm,    mdotd,   Tp,      Tbl,     Tml,     Tbs,     Tms,     Tdso,    Ta,        Tw,      OAT,\n'); end
-            printf('%7.1f, %7.1f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f, %7.3f,\n',...
-                time, cmd, hduct, cfm, mdotd, Tp, Tbl, Tml, Tbs, Tms, Tdso, Ta, Tw, OAT);
-        end
-
-        C.time($+1) = time;
-        C.cmd($+1) = cmd;
-        C.hduct($+1) = hduct;
-        C.cfm($+1) = cfm;
-        C.mdotd($+1) = mdotd;
-        C.Tp($+1) = Tp;
-        C.Tbl($+1) = Tbl;
-        C.Tml($+1) = Tml;
-        C.Tbs($+1) = Tbs;
-        C.Tms($+1) = Tms;
-        C.Tdso($+1) = Tdso;
-        C.Tdsi($+1) = Tdsi;
-        C.Ta($+1) = Ta;
-        C.Tw($+1) = Tw;
-        C.OAT($+1) = OAT;
-        C.Qdli($+1) = Qdli;
-        C.Qdlo($+1) = Qdlo;
-        C.Qdsi($+1) = Qdsi;
-        C.Qdso($+1) = Qdso;
-        C.Qai($+1) = Qai;
-        C.Qao($+1) = Qao;
-        C.Qwi($+1) = Qwi;
-        C.Qwo($+1) = Qwo;
-        C.TmlDot($+1) = TmlDot;
-        C.TmsDot($+1) = TmsDot;
-        C.TaDot($+1) = TaDot;
-        C.TwDot($+1) = TwDot;
-        C.QaiMQao($+1) = Qai-Qao;
-        
-        // Integrate
-        Tml = min(max(Tml + dt*TmlDot, OAT), Tbl);
-        Tms = min(max(Tms + dt*TmsDot, OAT), Tbs);
-        Ta = min(max(Ta + dt*TaDot, Tw), Tdso);
-        Tw = min(max(Tw + dt*TwDot, OAT), Ta);
-    
-    
-    end
-endfunction
-
-
 // Calculate all aspects of heat model
 function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, M, i, B);
     // Neglect duct heat effects
@@ -272,14 +271,17 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
 
     // Inputs.   In testing, close happens before crack happens before open
     [cfm, mdot_raw, hduct, dMdot_dCmd] = flow_model(%cmd, M.rhoa, M.mua);
-    if time<M.t_door_crack & time>M.t_door_close then,
+    flow_blocked = (time<M.t_door_crack & time>M.t_door_close) || ...
+                   (time<M.t_sys_on & time>M.t_sys_off) || ...
+                   (time<M.t_door_open & time>M.t_door_close);
+    if  flow_blocked then,
         mdot_raw = 0;
         cfm = 0;
     end
-    if time<M.t_sys_on & time>M.t_sys_off then,
-        mdot_raw = 0;
-        cfm = 0;
-    end
+
+    // Turn convction on/off
+    Sconv = (1-max(min((mdot_raw-M.t1)/(M.t2-M.t1), 1), 0));
+
     // Flow filter
     if reset then,
         mdot = mdot_raw;
@@ -301,22 +303,15 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Initialize
     // Qconv needed to match Ta_Sense to Ta
     // For linear model assume all these biases and values are constant operating conditions dY_dX = 0
-    //t1 = 400; t2 = 700;
-   // Qconv = (1-max(min((mdot_raw-t1)/(t2-t1), 1), 0)) * M.Qcon;   //Rev 1c
-    Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - (mdot_raw*M.Cpa*M.Rsa*Tdso + OAT - M.Qlk*M.Rsa) ) / M.Rsa;
-    if time<M.t_door_open & time>M.t_door_close then,
-        Tass = max((mdot*M.Cpa*M.Rsa*Tdso - M.Qlkd*M.Rsa + OAT - M.Qlk*M.Rsa ) / (mdot*M.Cpa*M.Rsa + 1), OAT);
-    else
-        Tass = max((mdot*M.Cpa*M.Rsa*Tdso - M.Qlkd*M.Rsa + OAT - M.Qlk*M.Rsa + Tk*M.Gconv*M.Rsa) / (mdot*M.Cpa*M.Rsa + M.Gconv*M.Rsa + 1), OAT);
-    end
-    Qaiss = (Tass - OAT) / M.Rsa;
-    Twss = max(Tass - Qaiss * M.Rsai, OAT);
-    
-    Qlk = M.Qlk;
-    Qlkd = M.Qlkd;
+    Qlkd = M.Glkd*(Tp-OAT) + M.Qlkd;
     if mdot_raw==0 then
         Qlkd = 0;
     end
+
+    Tass = max(( (mdot_raw*M.Cpa*Tdso - Qlkd + M.Qlk + M.Glk*Tk)*M.Rsa + OAT + Tk*M.Gconv*Sconv*M.Rsa) / (mdot_raw*M.Cpa*M.Rsa + M.Gconv*Sconv*M.Rsa + M.Glk*M.Rsa + 1), OAT);
+    Qwiss = (Tass - OAT) / M.Rsa;
+    Twss = max(Tass - Qwiss * M.Rsai, OAT);
+    
 
     if reset then,
         Ta = Tass;
@@ -326,23 +321,25 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
         if force_init_ta then
             Ta = ta_init;
             Tass = Ta;
-            Qaiss = (Tass - OAT) / M.Rsa;
-            Twss = max(Tass - Qaiss * M.Rsai, OAT);
+            Qwiss = (Tass - OAT) / M.Rsa;
+            Twss = max(Tass - Qwiss * M.Rsai, OAT);
             Tw = Twss;
         end
+        Qlk = M.Glk*(Tk-Ta) + M.Qlk;
     else
         Ta = M.Ta(i-1);
         Tw = M.Tw(i-1);
-        Qai = Tdso * M.Cpa * mdot - Qlkd;
-        Qao = Ta * M.Cpa * mdot - Qlk;
+        Qlk = M.Glk*(Tk-Ta) + M.Qlk;
+        Qai = Tdso * M.Cpa * mdot - Qlkd + Qlk;
+        Qao = Ta * M.Cpa * mdot;
     end
     //    Tmai = Ta - Qai / M.Hai;
     //    Tmao = OAT + Qao / M.Hao;
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
-    Qconv = (Tk - Ta)*M.Gconv;
-    if time<M.t_door_open & time>M.t_door_close then, Qconv = 0; end
-    
+    Qconv = (Tk - Ta)*M.Gconv*Sconv;
+    Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + 1) - ((mdot_raw*M.Cpa*Tdso  - Qlkd + Qlk)*M.Rsa + OAT) ) / M.Rsa;
+
     // Derivatives
     dn_TaDot = 3600 * M.Cpa * M.Mair;
     dn_TwDot = 3600 * M.Cpw * M.Mw;
@@ -351,7 +348,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Integrate
     Ta = min(max(Ta + dt*TaDot, OAT), Tdso);
     Tw = min(max(Tw + dt*TwDot, OAT), Tdso);
-    
+//if time>-18000 then, pause; end
     // Consolidate the linear model
     // states:  {Ta  Tw}
     // inputs:  {mdot Tdso OAT}
@@ -421,9 +418,11 @@ a=1;b=1;c=1;e=1;
     M.Tw(i) = Tw;
     M.TwDot(i) = TwDot;
     M.Qmatch(i) = Qmatch;
-    M.Qconv(i) = Qconv;
+    M.Qconv(i) = Qconv*Sconv;
     M.mdot(i) = mdot;
     M.Tass(i) = Tass;
     M.Twss(i) = Twss;
+    M.Qleak(i) = Qlk;
+    M.QleakD(i) = Qlkd;
 
 end

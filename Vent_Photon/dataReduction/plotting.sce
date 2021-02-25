@@ -138,15 +138,10 @@ function plot_model(%zoom, %loc)
     if ~exists('%loc') then
         %loc = default_loc + [50, 50];
     end
-    figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
-    subplot(221)
-    overplot(['P.M.TaDot', 'P.M.TwDot'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
-    subplot(224)
-    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.B.Ta_Filt', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss'], ['k-', 'c--', 'g-', 'k--', 'r--', 'b--'], 'Duct', 'time, s', %zoom)
-    subplot(223)
-    overplot(['P.M.Qmatch', 'P.M.Qconv'], ['b-', 'g-'], 'Flux', 'time, s', %zoom)
-    subplot(222)
-    overplot(['P.D.Tp_Sense'], ['r-'], 'Tp', 'time, s', %zoom)
+
+    figs($+1) = figure("Figure_name", 'Plant Poles', "Position", [%loc, %size]);
+    subplot(111)
+    overplot(['P.M.duct_pole', 'P.M.fast_room_pole', 'P.M.slow_room_pole'], ['k-', 'g-', 'r--'], 'Poles', 'time, s', %zoom)
 
     figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
     subplot(221)
@@ -175,9 +170,15 @@ function plot_model(%zoom, %loc)
     subplot(224)
     overplot(['P.C.prop', 'P.C.integ', 'P.C.duty'], ['r-', 'b-', 'g--'], 'Flow', 'time, s', %zoom)
 
-    figs($+1) = figure("Figure_name", 'Plant Poles', "Position", [%loc, %size]);
-    subplot(111)
-    overplot(['P.M.duct_pole', 'P.M.fast_room_pole', 'P.M.slow_room_pole'], ['k-', 'g-', 'r--'], 'Poles', 'time, s', %zoom)
+    figs($+1) = figure("Figure_name", 'Heat Model', "Position", [%loc, %size]);
+    subplot(221)
+    overplot(['P.M.TaDot', 'P.M.TwDot'], ['k-', 'g-'], 'Flow', 'time, s', %zoom)
+    subplot(224)
+    overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.B.Ta_Filt', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss'], ['k-', 'c--', 'g-', 'k--', 'r--', 'b--'], 'Duct', 'time, s', %zoom)
+    subplot(223)
+    overplot(['P.M.Qmatch', 'P.M.Qconv'], ['b-', 'g-'], 'Flux', 'time, s', %zoom)
+    subplot(222)
+    overplot(['P.D.Tp_Sense'], ['r-'], 'Tp', 'time, s', %zoom)
 
 endfunction
 
