@@ -49,3 +49,13 @@ function serial_print_inputs_1()
         mfprintf(doubtfd, '\n');
     end
 end
+
+function serial_print_model_1()
+    for k=0:size(M.set,1)-2
+        serial_print_inputs(k);
+        serial_print(k);
+        printf('\n');
+        mfprintf(doubtfd, '\n');
+    end
+end
+

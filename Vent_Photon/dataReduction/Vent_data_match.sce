@@ -39,24 +39,6 @@ exec('plotting.sce');
 exec('export_figs.sci');
 exec('heat_model.sce');
 
-function serial_print_model_1()
-    for k=0:size(M.set,1)-2
-        serial_print_inputs(k);
-        serial_print(k);
-        printf('\n');
-        mfprintf(doubtfd, '\n');
-    end
-end
-
-
-// Deadband
-function y = dead(x, hdb)
-    // x    input
-    // hdb  half of deadband
-    // y    output
-    y = max(x-hdb, 0) + min(x+hdb, 0);
-endfunction
-
 
 global figs
 try close(figs); end
@@ -81,34 +63,30 @@ M="";C="";
 exec('heat_model_constants.sce');
 [M, C] = heat_model_define();
 
-
+/////////////////////////////////  begin user input  ///////////////////////////////////////////////////////
 // User inputs
-run_name = 'largeStepDecr_2021_02_04'
-run_name = 'vent_2021-02-05T17-00'
-run_name = 'vent_2021-02-06T14-00'
-run_name = 'vent_2021-02-16T21-31'
-run_name = 'vent_2021-02-17T04-00'
-run_name = 'vent_2021-02-17T04-00_'
+force_init_ta = %f; debug=2; plotting = %t; first_init_override = 1;
+closed_loop = %f; do_poles = %f;
 
-force_init_ta = %f;
-
-// Fan on
-//run_name = 'vent_2021-02-17T04-00_open_open_100';force_init_ta = %t; dTw_init = 0; M.t_door_close = -20741; M.t_door_crack =  -17130; M.t_door_open = -11000; M.Qlk = 200; M.Smdot = 0.4; // close door ; crack door ; open door 
+// Transient runs to choose from
 
 // Fan off;   open door at -17642;  Fan comes on at -11040
-//run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; dTw_init = 0; M.t_door_open = -17642; M.Qlk = 672;  M.Smdot = 0.4;
-//run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; M.dTpTk = 80; dTw_init = 0; M.t_door_open = -17642; M.Smdot = 0.4; M.Tk = 68; M.Glk = 50; M.Gconv = 60; M.Qlk = 669-15.4*M.Glk; M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
-run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %f; M.dTpTk = 80; dTw_init = 0; M.t_door_open = -17642; M.Smdot = 1.0; M.Tk = 68; M.Glk = 50; M.Gconv = 60; M.Qlk = 669-15.4*M.Glk; M.Glkd = 100;  M.Qlkd = 900-42.73*M.Glkd;
+//run_name = 'vent_2021-02-22T03-46_open'; M.dTpTk = 80; M.t_door_open = -17642; M.Qlk = 669-15.4*M.Glk;  M.Qlkd = 900-42.73*M.Glkd;
 
-// Retune?
-//run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720;force_init_ta = %f; M.dTpTk = 80; M.Gconv = 20; M.mdotl_decr = 6000; M.Qlk = 0; M.Glk = 50; M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
-//run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720;force_init_ta = %f; M.dTpTk = 80;M.Gconv = 60; M.mdotl_decr = 6000; M.Qlk = -100; M.Glk = 50; M.Glkd = 100;  M.Qlkd = 736-42.73*M.Glkd;
+// Normal cooldown then normal shutoff for night.  Clock timer on/off not included in scilab model (sys_on/sys_off)
+run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720; M.mdotl_decr = 6000; M.Qlk = -100; M.Qlkd = 736-42.73*M.Glkd;
 
-debug=2; plotting = %t; first_init_override = 1;
-closed_loop = %f;
+// Fan on;  close door at -20741; crack door at -17130; open door  at -11000
+// For this one, I think conduction partially blocked when door cracked.   Shouldn't use this one
+//run_name = 'vent_2021-02-17T04-00_open_open_100'; M.t_door_close = -20741; M.t_door_crack =  -17130; M.t_door_open = -11000; M.Qlk = -480; M.Qlkd = -4000; M.t1 = 1200; M.t2 = 2000; M.Gconv = 120;
+
+// TODO:  test convection transitions various duty cycles
+// TODO:  redo door cracked to open it a bit more but without engaging convection
+// TODO:  rederive plant poles with new Gconv/Glk/Glkd
+
+/////////////////////////////////  end user input  ///////////////////////////////////////////////////////
 
 // Load data.  Used to be done by hand-loading a sce file then >exec('debug.sce');
-//run_name = 'vent_2021-01-31T19-25';
 data_file = run_name + '.csv';
 [data_t, data_d] = load_csv_data(data_file);
 if size(data_d,1)==0 then
@@ -152,33 +130,35 @@ for i=1:B.N,
     OAT = B.OAT(i);
     pcnt_pot = B.pcnt_pot(i);
     ta_init = B.Ta_Sense(i);
-    [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, duty, reset, M, i, B);
+    [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, duty, reset, M, i, B, do_poles);
 
     // Linear  model stuff
-//    sroom = syslin('c', a,b,c);
-//    hroom = ss2tf(sroom);
-//    hduct_den = poly([-1/M.mdotl_incr], 's');  // mdotl_incr is worst case
-//    hduct_num = dMdot_dCmd/M.mdotl_incr;
-//    hduct = hduct_num / hduct_den;
-//    sysplant = hduct * hroom;
-//    Sduct = zpk(hduct);
-//    duct_poles = -gsort(1 ./Sduct.P{:});
-//    Sroom = zpk(hroom);
-//    room_poles = -gsort(1 ./ Sroom.P{:});
-//    Splant = zpk(sysplant);
-//    our_poles = -gsort(1 ./ Splant.P{:});
-//    M.duct_pole(i) = duct_poles(1);
-//    M.fast_room_pole(i) = room_poles(1);
-//    if size(room_poles, 1)<2 then
-//        M.slow_room_pole(i) = %nan;
-//    else
-//        M.slow_room_pole(i) = room_poles(2);
-//    end
-//    sysc_num = poly([-1/C.tau], 's')*C.tau*C.G;
-//    sysc_den = poly([0], 's');
-//    sysc = sysc_num/sysc_den;
-//    sysol = sysc * sysplant;
-    
+    if do_poles then
+        sroom = syslin('c', a,b,c);
+        hroom = ss2tf(sroom);
+        hduct_den = poly([-1/M.mdotl_incr], 's');  // mdotl_incr is worst case
+        hduct_num = dMdot_dCmd/M.mdotl_incr;
+        hduct = hduct_num / hduct_den;
+        sysplant = hduct * hroom;
+        Sduct = zpk(hduct);
+        duct_poles = -gsort(1 ./Sduct.P{:});
+        Sroom = zpk(hroom);
+        room_poles = -gsort(1 ./ Sroom.P{:});
+        Splant = zpk(sysplant);
+        our_poles = -gsort(1 ./ Splant.P{:});
+        M.duct_pole(i) = duct_poles(1);
+        M.fast_room_pole(i) = room_poles(1);
+        if size(room_poles, 1)<2 then
+            M.slow_room_pole(i) = %nan;
+        else
+            M.slow_room_pole(i) = room_poles(2);
+        end
+        sysc_num = poly([-1/C.tau], 's')*C.tau*C.G;
+        sysc_den = poly([0], 's');
+        sysc = sysc_num/sysc_den;
+        sysol = sysc * sysplant;
+    end
+
     // Control law
     %set = B.set(i);
     err = %set - M.Ta(i);
@@ -202,7 +182,6 @@ P = map_all_plots(P, B, 'B');
 P.C.integ =  struct('time', B.time, 'values', C.integ);
 P.C.prop =  struct('time', B.time, 'values', C.prop);
 P.C.duty = struct('time', B.time, 'values', C.duty);
-//P = map_all_plots(P, C, 'C');
 
 // Detail serial print
 if debug>2 then serial_print_model_1(); end

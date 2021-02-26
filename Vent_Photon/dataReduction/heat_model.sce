@@ -183,6 +183,7 @@
 //                time, cmd, hduct, cfm, mdotd, Tp, Tbl, Tml, Tbs, Tms, Tdso, Ta, Tw, OAT);
 //        end
 //
+
 //        C.time($+1) = time;
 //        C.cmd($+1) = cmd;
 //        C.hduct($+1) = hduct;
@@ -255,7 +256,7 @@ function [Qduct, mdot, hf, dMdot_dCmd] = flow_model(%cmd, rho, mu);
 endfunction
 
 // Calculate all aspects of heat model
-function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, M, i, B);
+function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, M, i, B, do_poles);
     // Neglect duct heat effects
     // reset    Flag to indicate initialization
 
@@ -274,14 +275,15 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     flow_blocked = (time<M.t_door_crack & time>M.t_door_close) || ...
                    (time<M.t_door_open & time>M.t_door_close);
     flow_off = (time<M.t_sys_on & time>M.t_sys_off);
-    if  flow_blocked || flow_off then,
+    conv_off = flow_off || flow_blocked;
+    if  flow_off then,
         mdot_raw = 0;
         cfm = 0;
     end
 
     // Turn convection on/off
     Sconv = (1-max(min((mdot_raw-M.t1)/(M.t2-M.t1), 1), 0));
-    if flow_blocked then Sconv = 0; end
+    if conv_off then Sconv = 0; end
     
     // Flow filter
     if reset then,
@@ -294,15 +296,11 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     
     // Duct loss
     dTdso_dTp = 1;
-    //M.Tk = Tp;  /// DAG 2/24/2021
-   // M.Qlk = 300;
-    //M.Gconv = 10;
-    // Tk = M.Tk;
-    Tk = max(Tp - M.dTpTk, M.Tk);
-//    Tk = max(Tdso + M.Duct_temp_drop - M.dTpTk, M.Tk)
+
+    // Kitchen
+    Tk = M.Tk;
 
     // Initialize
-    // Qconv needed to match Ta_Sense to Ta
     // For linear model assume all these biases and values are constant operating conditions dY_dX = 0
     Qlkd = M.Glkd*(Tp-OAT) + M.Qlkd;
     if mdot_raw==0 then
@@ -313,7 +311,6 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     Qwiss = (Tass - OAT) / M.Rsa;
     Twss = max(Tass - Qwiss * M.Rsai, OAT);
     
-
     if reset then,
         Ta = Tass;
         Qai = (Tass - OAT) / M.Rsa;
@@ -339,6 +336,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
     Qconv = (Tk - Ta)*M.Gconv*Sconv;
+    // TODO:   check Qmatch out for accuracy
     Qmatch = (B.Ta_Sense(i)*(mdot_raw*M.Cpa*M.Rsa + M.Gconv*Sconv*M.Rsa + M.Glk*M.Rsa + 1) - ((mdot_raw*M.Cpa*Tdso  - Qlkd + M.Qlk + M.Glk*Tk)*M.Rsa + OAT + Tk*M.Gconv*Sconv*M.Rsa) ) / M.Rsa;
 
     // Derivatives
@@ -346,63 +344,70 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     dn_TwDot = 3600 * M.Cpw * M.Mw;
     TaDot = (Qai - Qao - Qwi + Qconv) / dn_TaDot;
     TwDot = (Qwi - Qwo) / dn_TwDot;
+    
     // Integrate
     Ta = min(max(Ta + dt*TaDot, OAT), Tdso);
     Tw = min(max(Tw + dt*TwDot, OAT), Tdso);
+    
 //if reset | time>-17500 then, pause; end
 //if time>-20000 then, pause; end
+//if time>-17000 then, pause; end
+//if time>-10000 then, pause; end
+
+
     // Consolidate the linear model
     // states:  {Ta  Tw}
     // inputs:  {mdot Tdso OAT}
     // outputs: {Ta}
+    // TODO: add Gconv Glk and Glkd
+    if do_poles then,
+        dQai_dMdot = M.Cpa * Tdso;
+        dQai_dTdso = M.Cpa * mdot;
+        dQao_dMdot = M.Cpa * Ta;
+        dQao_dTa = M.Cpa * mdot;
+        dQwi_dTa = 1/M.Rsai;
+        dQwi_dTw = -1/M.Rsao;
+        dQwo_dTw = 1/M.Rsai;
+        dQwo_dOAT = -1/M.Rsao;
+    
+        dTaDot_dQai = 1/dn_TaDot;
+        dTaDot_dQao = -1/dn_TaDot;
+        dTaDot_dQwi = -1/dn_TaDot;
+        dTwDot_dQwi = 1/dn_TwDot;
+        dTwDot_dQwo = -1/dn_TwDot;
+        
+        dTaDot_dTa = dTaDot_dQao * dQao_dTa  +  dTaDot_dQwi * dQwi_dTa;
+        dTaDot_dTw = dTaDot_dQwi * dQwi_dTw;
+        
+        dTwDot_dTw = dTwDot_dQwi * dQwi_dTw  +  dTwDot_dQwo * dQwo_dTw;
+        dTwDot_dTa = dTwDot_dQwi * dQwi_dTa;
+    
+        dTaDot_dMdot = dTaDot_dQai * dQai_dMdot  +  dTaDot_dQao * dQao_dMdot;
+        dTaDot_dTdso = dTaDot_dQai * dQai_dTdso;
+        dTaDot_dOAT = 0;
+    
+        dTwDot_dMdot = 0;
+        dTwDot_dTdso = 0;
+        dTwDot_dOAT = dTwDot_dQwo * dQwo_dOAT;
+        
+        dTa_dTa = 1;
+        dTa_dTw = 0;
+        
+        dTa_dMdot = 0;
+        dTa_dTdso = 0;
+        dTa_dOAT = 0;
+        // states:  {Ta  Tw}
+        // inputs:  {mdot Tdso OAT}
+        // outputs: {Ta}
+        a = [  dTaDot_dTa      dTaDot_dTw;
+               dTwDot_dTa      dTwDot_dTw  ];
+        b = [  dTaDot_dMdot; dTwDot_dMdot];
+        c = [  dTa_dTa         dTa_dTw     ];
+        e = [  dTa_dMdot       dTa_dTdso       dTa_dOAT];
+    else
+        a=1;b=1;c=1;e=1;
+    end
 
-//    dQai_dMdot = M.Cpa * Tdso;
-//    dQai_dTdso = M.Cpa * mdot;
-//    dQao_dMdot = M.Cpa * Ta;
-//    dQao_dTa = M.Cpa * mdot;
-//    dQwi_dTa = 1/M.Rsai;
-//    dQwi_dTw = -1/M.Rsao;
-//    dQwo_dTw = 1/M.Rsai;
-//    dQwo_dOAT = -1/M.Rsao;
-//
-//    dTaDot_dQai = 1/dn_TaDot;
-//    dTaDot_dQao = -1/dn_TaDot;
-//    dTaDot_dQwi = -1/dn_TaDot;
-//    dTwDot_dQwi = 1/dn_TwDot;
-//    dTwDot_dQwo = -1/dn_TwDot;
-//    
-//    dTaDot_dTa = dTaDot_dQao * dQao_dTa  +  dTaDot_dQwi * dQwi_dTa;
-//    dTaDot_dTw = dTaDot_dQwi * dQwi_dTw;
-//    
-//    dTwDot_dTw = dTwDot_dQwi * dQwi_dTw  +  dTwDot_dQwo * dQwo_dTw;
-//    dTwDot_dTa = dTwDot_dQwi * dQwi_dTa;
-//
-//    dTaDot_dMdot = dTaDot_dQai * dQai_dMdot  +  dTaDot_dQao * dQao_dMdot;
-//    dTaDot_dTdso = dTaDot_dQai * dQai_dTdso;
-//    dTaDot_dOAT = 0;
-//
-//    dTwDot_dMdot = 0;
-//    dTwDot_dTdso = 0;
-//    dTwDot_dOAT = dTwDot_dQwo * dQwo_dOAT;
-//    
-//    dTa_dTa = 1;
-//    dTa_dTw = 0;
-//    
-//    dTa_dMdot = 0;
-//    dTa_dTdso = 0;
-//    dTa_dOAT = 0;
-//
-//    // states:  {Ta  Tw}
-//    // inputs:  {mdot Tdso OAT}
-//    // outputs: {Ta}
-//    a = [  dTaDot_dTa      dTaDot_dTw;
-//           dTwDot_dTa      dTwDot_dTw  ];
-////    b = [  dTaDot_dMdot    dTaDot_dTdso    dTaDot_dOAT;
-////           dTwDot_dMdot    dTwDot_dTdso    dTwDot_dOAT ];
-//    b = [  dTaDot_dMdot; dTwDot_dMdot];
-//    c = [  dTa_dTa         dTa_dTw     ];
-////    e = [  dTa_dMdot       dTa_dTdso       dTa_dOAT];
-a=1;b=1;c=1;e=1;
     // Save / store
     M.time(i) = time;
     M.dt(i) = dt;
