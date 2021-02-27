@@ -89,17 +89,20 @@ const uint32_t pwm_frequency = 5000;    // Photon pwm driver frequency, Hz. (ECM
 #define M_RHOA          0.0739      // Density of dry air at 80F, lbm/ft^3  (0.0739)
 #define M_R4            22.5        // Resistance of R4 wall insulation, F-ft^2/(BTU/hr)  (22.5)
 #define M_R22           125.        // Resistance of R22 wall insulation, F-ft^2/(BTU/hr)  (125)
-#define M_RWALL         22.5        // Resistance of wall insulation, F-ft^2/(BTU/hr)  (R4)
+#define M_RWALL         M_R4        // Resistance of wall insulation, F-ft^2/(BTU/hr)  (R4)
 #define M_DUCT_TEMP_DROP    7.      // Observed using infrared thermometer, F (7)
 #define M_DUCT_DIA      0.5         // Duct diameter, ft (0.5)
-#define M_QLK           0.          // Model alignment heat loss, BTU/hr (0)
 #define M_MDOTL_INCR    360.        // Duct long term heat soak, s (360)   CoolTerm Capture 2021-01-21 14-12-19.xlsx
 #define M_MDOTL_DECR    90.         // Duct long term heat soak, s (90)    data match activities
 #define M_MUA           0.04379     // Viscosity air, lbm/ft/hr (0.04379)
 #define M_VOL_AIR       1152.       // Volume of air in 8x12x12 room, ft^3 (1152)
 #define M_MAIR          (M_VOL_AIR * M_RHOA)        // Mass of air in room, lbm
-#define M_SMDOT         0.4         // Scale duct flow
-#define M_GCONV         50          // Convective heat flow gain, (BTU/hr)/F
+#define M_SMDOT         1.0         // Scale duct flow
+#define M_GCONV         60          // Convective heat flow gain, (BTU/hr)/F
+#define M_GLK           50          // Unknown room heat flow gain, (BTU/hr)/F
+#define M_QLK           500.        // Model alignment heat loss, BTU/hr (0)
+#define M_GLKD          100         // Unknown duct heat flow gain, (BTU/hr)/F
+#define M_QLKD          0.          // Duct model alignment heat loss, BTU/hr (0)
 #define M_TK            68          // Kitchen temperature, F
 const double M_RSA = 1./M_HI/M_AW + M_RWALL/M_AW + 1./M_HO/M_AW;  // Effective resistance of air,  F-ft^2/(BTU/hr)
 const double M_RSAI = 1./M_HI/M_AW;                 // Resistance air to wall,  F-ft^2/(BTU/hr)

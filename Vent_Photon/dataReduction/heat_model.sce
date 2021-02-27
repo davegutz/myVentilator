@@ -184,6 +184,7 @@
 //        end
 //
 
+
 //        C.time($+1) = time;
 //        C.cmd($+1) = cmd;
 //        C.hduct($+1) = hduct;
@@ -280,6 +281,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
         mdot_raw = 0;
         cfm = 0;
     end
+    otherHeat = 0;
 
     // Turn convection on/off
     Sconv = (1-max(min((mdot_raw-M.t1)/(M.t2-M.t1), 1), 0));
@@ -306,11 +308,11 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     if mdot_raw==0 then
         Qlkd = 0;
     end
-
+    
     Tass = max(( (mdot_raw*M.Cpa*Tdso - Qlkd + M.Qlk + M.Glk*Tk)*M.Rsa + OAT + Tk*M.Gconv*Sconv*M.Rsa) / (mdot_raw*M.Cpa*M.Rsa + M.Gconv*Sconv*M.Rsa + M.Glk*M.Rsa + 1), OAT);
     Qwiss = (Tass - OAT) / M.Rsa;
     Twss = max(Tass - Qwiss * M.Rsai, OAT);
-    
+    Qduct = mdot*M.Cpa*Tdso - Qlkd;
     if reset then,
         Ta = Tass;
         Qai = (Tass - OAT) / M.Rsa;
@@ -328,11 +330,12 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
         Ta = M.Ta(i-1);
         Tw = M.Tw(i-1);
         Qlk = M.Glk*(Tk-Ta) + M.Qlk;
-        Qai = Tdso * M.Cpa * mdot - Qlkd + Qlk;
+        Qai = Qduct + Qlk;
         Qao = Ta * M.Cpa * mdot;
     end
     //    Tmai = Ta - Qai / M.Hai;
     //    Tmao = OAT + Qao / M.Hao;
+    dQa = Qai - Qao;
     Qwi = (Ta - Tw) / M.Rsai;
     Qwo = (Tw - OAT) / M.Rsao;
     Qconv = (Tk - Ta)*M.Gconv*Sconv;
@@ -342,7 +345,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     // Derivatives
     dn_TaDot = 3600 * M.Cpa * M.Mair;
     dn_TwDot = 3600 * M.Cpw * M.Mw;
-    TaDot = (Qai - Qao - Qwi + Qconv) / dn_TaDot;
+    TaDot = (Qai - Qao - Qwi + Qconv + otherHeat) / dn_TaDot;
     TwDot = (Qwi - Qwo) / dn_TwDot;
     
     // Integrate
@@ -353,6 +356,8 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
 //if time>-20000 then, pause; end
 //if time>-17000 then, pause; end
 //if time>-10000 then, pause; end
+//if time>-18000 then, pause; end
+//if time>-25000 then, pause; end
 
 
     // Consolidate the linear model
@@ -424,8 +429,10 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
     M.Tp(i) = Tp;
     M.Tw(i) = Tw;
     M.TwDot(i) = TwDot;
+    M.dQa(i) = dQa;
     M.Qmatch(i) = Qmatch;
     M.Qconv(i) = Qconv*Sconv;
+    M.Qduct(i) = Qduct;
     M.mdot(i) = mdot;
     M.Tass(i) = Tass;
     M.Twss(i) = Twss;

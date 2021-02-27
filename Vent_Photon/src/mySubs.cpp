@@ -124,8 +124,9 @@ boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, R
     sen->Ta = (float(rawTemp)*165.0/16383.0 - 40.0)*1.8 + 32.0 + (TA_TEMPCAL); // convert to fahrenheit and calibrate
 
     // Model
-    duct->update(reset, T, sen->Tp,  con->duty);
-    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), sen->OAT, con->heat_o, sen->Ta);
+    duct->update(reset, T, sen->Tp,  con->duty, sen->OAT);
+    room->update(reset, T, duct->Qduct(), duct->mdot(), duct->mdot_lag(), M_TK, duct->Qlkd(), sen->OAT,
+      (con->heat_o + sun_wall->solar_heat()), sen->Ta);
     sen->Ta_obs = room->Ta();
 
     // MAXIM conversion 1-wire Tp plenum temperature
@@ -148,8 +149,9 @@ boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, R
     sen->pcnt_pot = 100.;
 
     // Model
-    duct->update(reset, T, sen->Tp,  con->duty);
-    room->update(reset, T, duct->Tdso(), duct->mdot_lag(), sen->OAT, sun_wall->solar_heat(), con->set);
+    duct->update(reset, T, sen->Tp,  con->duty, sen->OAT);
+    room->update(reset, T, duct->Qduct(), duct->mdot(), duct->mdot_lag(), M_TK, duct->Qlkd(), sen->OAT, 
+      (con->heat_o+sun_wall->solar_heat()), con->set);
     sen->Ta_obs = room->Ta();
     sen->Ta = room->Ta();
   }
