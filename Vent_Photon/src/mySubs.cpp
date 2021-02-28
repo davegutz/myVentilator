@@ -64,30 +64,27 @@ void publish_particle(unsigned long now)
   }
 }
 
+// Text header
+void print_serial_header(void)
+{
+  Serial.println(F("unit,hm, cTime, set,Tp,Ta,cmd,  T,OAT,Ta_o,  err,prop,integ,cont,  pcnt_pot,duty,Ta_filt,  solar,  heat_o"));
+}
 
 // Inputs serial print
 void serial_print_inputs(unsigned long now, double T)
 {
-  Serial.print(F("0,")); Serial.print(now, DEC); Serial.print(", ");
-  Serial.print(pubList.controlTime, 3); Serial.print(", ");
-  Serial.print(T, 6); Serial.print(", ");  
-  Serial.print(pubList.I2C_status, DEC); Serial.print(", ");
-  Serial.print(pubList.set, 1); Serial.print(", ");
-  Serial.print(pubList.Tp, 1); Serial.print(", ");
-  Serial.print(pubList.Ta, 1); Serial.print(", ");
-  Serial.print(pubList.Ta_filt, 1); Serial.print(", ");
-  Serial.print(pubList.hum, 1); Serial.print(", ");
-  Serial.print(pubList.pcnt_pot, 1); Serial.print(", ");
-  Serial.print(pubList.OAT, 1); Serial.print(", ");
-  Serial.print(pubList.solar_heat, 1); Serial.print(", ");
-  Serial.print(pubList.heat_o, 1); Serial.print(", ");
+  sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
+  %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
+    pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.set-HYST, pubList.Tp,
+    pubList.Ta, pubList.cmd, pubList.T, pubList.OAT, pubList.Ta_obs, pubList.err, pubList.prop,
+    pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o, '\0');
+  Serial.println(buffer);
 }
-
 
 // Normal serial print
 void serial_print(double cmd)
 {
-  if ( debug>0 )
+  if ( debug>2 )
   {
     Serial.print(cmd, 2); Serial.print(F(", "));
     Serial.print(pubList.duty, DEC); Serial.print(F(", "));
@@ -125,7 +122,7 @@ boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, R
 
     // Model
     duct->update(reset, T, sen->Tp,  con->duty, sen->OAT);
-    room->update(reset, T, duct->Qduct(), duct->mdot(), duct->mdot_lag(), M_TK, duct->Qlkd(), sen->OAT,
+    room->update(reset, T, duct->Qduct(), duct->mdot(), duct->mdot_lag(), M_TK, sen->OAT,
       (con->heat_o + sun_wall->solar_heat()), sen->Ta);
     sen->Ta_obs = room->Ta();
 
@@ -150,8 +147,8 @@ boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, R
 
     // Model
     duct->update(reset, T, sen->Tp,  con->duty, sen->OAT);
-    room->update(reset, T, duct->Qduct(), duct->mdot(), duct->mdot_lag(), M_TK, duct->Qlkd(), sen->OAT, 
-      (con->heat_o+sun_wall->solar_heat()), con->set);
+    room->update(reset, T, duct->Qduct(), duct->mdot(), duct->mdot_lag(), M_TK, sen->OAT,
+        (con->heat_o+sun_wall->solar_heat()), con->set);
     sen->Ta_obs = room->Ta();
     sen->Ta = room->Ta();
   }

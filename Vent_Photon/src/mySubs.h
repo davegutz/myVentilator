@@ -185,5 +185,6 @@ void saveTemperature(const int set, const int webDmd, const int held, const int 
 String tryExtractString(String str, const char* start, const char* end);
 double  decimalTime(unsigned long *currentTime, char* tempStr);
 int setSaveDisplayTemp(double t, Sensors *sen, Control *con);
+void print_serial_header(void);
 
 #endif

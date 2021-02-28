@@ -102,7 +102,7 @@ const uint32_t pwm_frequency = 5000;    // Photon pwm driver frequency, Hz. (ECM
 #define M_GLK           50          // Unknown room heat flow gain, (BTU/hr)/F
 #define M_QLK           500.        // Model alignment heat loss, BTU/hr (0)
 #define M_GLKD          100         // Unknown duct heat flow gain, (BTU/hr)/F
-#define M_QLKD          0.          // Duct model alignment heat loss, BTU/hr (0)
+#define M_QLKD          -3537       // Duct model alignment heat loss, BTU/hr (0)
 #define M_TK            68          // Kitchen temperature, F
 const double M_RSA = 1./M_HI/M_AW + M_RWALL/M_AW + 1./M_HO/M_AW;  // Effective resistance of air,  F-ft^2/(BTU/hr)
 const double M_RSAI = 1./M_HI/M_AW;                 // Resistance air to wall,  F-ft^2/(BTU/hr)

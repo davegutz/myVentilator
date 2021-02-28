@@ -69,7 +69,7 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #include "mySync.h"
 #include "mySubs.h"
 
-extern const int8_t debug = 3;         // Level of debug printing (3)
+extern const int8_t debug = 2;         // Level of debug printing (3)
 extern Publish pubList;
 Publish pubList = Publish();
 
@@ -167,7 +167,7 @@ void setup()
   // Header for debug print
   if ( debug>1 )
   { 
-    Serial.print(F("flag,time_ms,controlTime,T,I2C_status,set,Tp_Sense,Ta_Sense,Ta_filt,hum,pot,OAT,solar,heat_o,cmd,duty,")); Serial.println("");
+    print_serial_header();
   }
 
   if ( debug>3 ) { Serial.print(F("End setup debug message=")); Serial.println(F(", "));};

@@ -64,7 +64,7 @@ public:
         const double aq_0, const double aq_1, const double aq_2, const double cpa,
         const double duct_dia, const double duct_temp_drop,
         const double glkd, const double qlkd, const double mdot_lag_decr, const double mdot_lag_incr,
-        const double rhoa, const double mua, const double Smdot);
+        const double mua, const double rhoa, const double Smdot);
     void update(const int reset, const double T, const double Tp,  const uint32_t duty, const double OAT);
     double cfm(void){return cfm_;};
     double mdot(void){return mdot_;};
@@ -103,7 +103,7 @@ public:
     const double trans_conv_low, const double trans_conv_high);
     double Qlk(void){return Qlk_;};
     void update(const int reset, const double T, const double Qduct, const double mdot, const double mdot_lag,
-        const double Tk, const double Qlkd, const double OAT, const double otherHeat, const double set);
+        const double Tk, const double OAT, const double otherHeat, const double set);
     double Ta(void){return Ta_;};
     double Tw(void){return Tw_;};
 };

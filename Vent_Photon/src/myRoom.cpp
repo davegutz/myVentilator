@@ -35,14 +35,14 @@ extern int8_t debug;
 DuctTherm::DuctTherm()
     : name_(""), ap_0_(0), ap_1_(0), ap_2_(0), aq_0_(0), aq_1_(0), aq_2_(0),
     duct_dia_(0), duct_temp_drop_(0), glkd_(0), mdot_lag_decr_(0),
-    mdot_lag_incr_(0), mua_(0), Qlkd_(0), qlkd_(0), rhoa_(0)
+    mdot_lag_incr_(0), mua_(0), Qlkd_(0), qlkd_(0), rhoa_(0), Smdot_(0)
 {}
 
 DuctTherm::DuctTherm(const String name, const double ap_0, const double ap_1, const double ap_2,
         const double aq_0, const double aq_1, const double aq_2, const double cpa,
         const double duct_dia, const double duct_temp_drop,
         const double glkd, const double qlkd, const double mdot_lag_decr, const double mdot_lag_incr,
-        const double rhoa, const double mua, const double Smdot)
+         const double mua, const double rhoa,const double Smdot)
     : name_(name), ap_0_(ap_0), ap_1_(ap_1), ap_2_(ap_2), aq_0_(aq_0), aq_1_(aq_1), aq_2_(aq_2), cpa_(cpa),
     duct_dia_(duct_dia), duct_temp_drop_(duct_temp_drop), glkd_(glkd), mdot_lag_decr_(mdot_lag_decr),
     mdot_lag_incr_(mdot_lag_incr), mua_(mua), Qlkd_(0), qlkd_(qlkd), rhoa_(rhoa), Smdot_(Smdot)
@@ -91,7 +91,14 @@ void DuctTherm::update(const int reset, const double T, const double Tp,  const 
     if ( mdot_<1e-6 ) Qlkd_ = 0.0;
 
     // Overall
-    Qduct_ = Tdso_ * cpa_ * mdot_lag_ - Qlkd_;
+    Qduct_ = Tdso_*cpa_*mdot_lag_ - Qlkd_;
+
+    if ( debug > 2 )
+    {
+        Serial.printf("%s: glkd=%7.3f, qlkd=%7.3f, Qlkd=%7.3f, Tp=%7.3f, OAT=%7.3f, Tdso=%7.3f, cpa=%7.3f, mdot_lag=%7.3f, Qduct=%7.3f\n",
+            name_.c_str(), glkd_, qlkd_, Qlkd_, Tp, OAT, Tdso_, cpa_, mdot_lag_, Qduct_);
+    }
+
 }
 
 
@@ -111,7 +118,7 @@ RoomTherm::RoomTherm(const String name, const double cpa, const double dn_tadot,
 
 // Two-state thermal model
 void RoomTherm::update(const int reset, const double T, const double Qduct, const double mdot, const double mdot_lag, 
-    const double Tk, const double Qlkd, const double OAT, const double otherHeat, const double set)
+    const double Tk, const double OAT, const double otherHeat, const double set)
 {
     double qai;        // Heat into room air from duct flow, BTU/hr
     double qao;        // Heat out of room via the air displaced by duct flow, BTU/hr
@@ -126,7 +133,7 @@ void RoomTherm::update(const int reset, const double T, const double Qduct, cons
         Tw_ = min(OAT + (Ta_ - OAT) / rsa_*rsao_, Ta_);
     }
     Qlk_ = glk_ * (Tk - Ta_) + qlk_;
-    qai = Qduct - Qlkd + Qlk_;
+    qai = Qduct + Qlk_;
     qao = Ta_ * cpa_ * mdot_lag;
     qwi = (Ta_ - Tw_) / rsai_;
     qwo = (Tw_ - OAT) / rsao_;
@@ -141,12 +148,12 @@ void RoomTherm::update(const int reset, const double T, const double Qduct, cons
     
     if ( debug > 2 )
     {
-        Serial.printf("%s: reset=%d, mdot=%7.3f, Qduct=%7.3f, OAT=%7.3f,  ----->  Ta=%7.3f, Tw=%7.3f, \n", 
-            name_.c_str(), reset, mdot, Qduct, OAT, Ta_, Tw_);
+        Serial.printf("%s: reset=%d, mdot=%7.3f, mdot_lag=%7.3f, Qduct=%7.3f, OAT=%7.3f,  ----->  Ta=%7.3f, Tw=%7.3f, \n", 
+            name_.c_str(), reset, mdot, mdot_lag, Qduct, OAT, Ta_, Tw_);
         Serial.printf("%s: rsa=%7.3f, rsai=%7.3f, rsao=%7.3f,\n",
             name_.c_str(), rsa_, rsai_, rsao_);
-        Serial.printf("%s: dQa=%7.3f, Qlkd=%7.3f, Qlk_=%7.3f, Tk=%7.3f,\n",
-            name_.c_str(), dQa_, Qlkd, Qlk_, Tk);
+        Serial.printf("%s: dQa=%7.3f, Qlk_=%7.3f, Tk=%7.3f,\n",
+            name_.c_str(), dQa_, Qlk_, Tk);
         Serial.printf("%s: qai=%7.3f, qao=%7.3f, qwi=%7.3f, qwo=%7.3f, otherHeat=%7.3f, Ta_dot=%9.5f, Tw_dot=%9.5f,\n",
             name_.c_str(), qai, qao, qwi, qwo, otherHeat, Ta_dot, Tw_dot);
     }
