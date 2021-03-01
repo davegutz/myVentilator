@@ -124,8 +124,8 @@ const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain
 #define C_LLMAX         20          // Proportional path max limit, %
 #define C_LLMIN         -20         // Proportional path min limit, %
 #define C_DB_O          0.0         // Deadband in error, F
-#define C_MAX_O         500         // Integral and overall max limit, %
-#define C_MIN_O         -500        // Integral and overall min limit, %
+#define C_MAX_O         5000        // Integral and overall max limit, %
+#define C_MIN_O         -5000       // Integral and overall min limit, %
 #define C_LLMAX_O       20          // Proportional path max limit, %
 #define C_LLMIN_O       -20         // Proportional path min limit, %
 
