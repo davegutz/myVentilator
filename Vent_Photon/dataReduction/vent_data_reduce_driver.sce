@@ -61,6 +61,14 @@ B = load_buffer(D, first, last);
 //last = min(first+BUFFER_SIZE-SAMPLE_SIZE-1, D.N);
 //B = load_buffer(D, first, last, %f);
 
+global P
+//P = map_all_plots(P, M, 'M');
+P = map_all_plots(P, D, 'D');
+P = map_all_plots(P, B, 'B');
+//P.C.integ =  struct('time', B.time, 'values', C.integ);
+//P.C.prop =  struct('time', B.time, 'values', C.prop);
+//P.C.duty = struct('time', B.time, 'values', C.duty);
+
 // Detail serial print
 if debug>2 then serial_print_inputs_1(); end
 

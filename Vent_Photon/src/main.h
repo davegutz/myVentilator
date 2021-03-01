@@ -61,42 +61,33 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #endif
 */
 // Dependent includes.   Easier to debug code if remove unused include files
-#ifndef NO_BLYNK
-  #include "blynk.h"
-  #include "Blynk/BlynkHandlers.h"
-#endif
 #include "myInsolation.h"
 #include "mySync.h"
 #include "mySubs.h"
+#include "myCloud.h"
+#include "blynk.h"              // Only place this can appear is top level main.h
 
-extern const int8_t debug = 2;         // Level of debug printing (3)
+extern const int8_t debug = 2;  // Level of debug printing (3)
 extern Publish pubList;
 Publish pubList = Publish();
+extern int badWeatherCall;      // webhook lookup counter
+extern long updateweatherhour;  // Last hour weather updated
+extern bool weatherGood;        // webhook OAT lookup successful, T/F
+int badWeatherCall  = 0;
+long updateweatherhour;         // Last hour weather updated
+bool weatherGood;               // webhook OAT lookup successful, T/F
+
+extern BlynkParticle Blynk;      // Blynk object
+extern BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4; // Time Blynk events
+BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4;        // Time Blynk events
 
 // Global locals
-char buffer[256];           // Serial print buffer
-int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
-String hmString = "00:00";  // time, hh:mm
-double controlTime = 0.0;   // Decimal time, seconds since 1/1/2021
-#ifndef NO_WEATHER_HOOK
-  int badWeatherCall  = 0;  // webhook lookup counter
-  long updateweatherhour;   // Last hour weather updated
-  bool weatherGood;         // webhook OAT lookup successful, T/F
-#endif
+char buffer[256];               // Serial print buffer
+int numTimeouts = 0;            // Number of Particle.connect() needed to unfreeze
+String hmString = "00:00";      // time, hh:mm
+double controlTime = 0.0;       // Decimal time, seconds since 1/1/2021
 unsigned long lastSync = millis();// Sync time occassionally.   Recommended by Particle.
-Pins *myPins;               // Photon hardware pin mapping used
-
-
-// Local Utilities (use globals)
-int particleHold(String command);
-int particleSet(String command);
-void gotWeatherData(const char *name, const char *data);
-void getWeather(void);
-void publish1(void);
-void publish2(void);
-void publish3(void);
-void publish4(void);
-BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4;     // Time Blynk events
+Pins *myPins;                   // Photon hardware pin mapping used
 
 
 // Setup
@@ -139,24 +130,17 @@ void setup()
 
   // OAT
   // Lets listen for the hook response
-  #ifndef NO_WEATHER_HOOK
-    Particle.subscribe("hook-response/get_weather", gotWeatherData, MY_DEVICES);
-  #endif
+  Particle.subscribe("hook-response/get_weather", gotWeatherData, MY_DEVICES);
 
   // Begin
   Particle.connect();
-  #ifndef NO_CLOUD
-    Particle.function("HOLD", particleHold);
-    Particle.function("SET",  particleSet);
-  #endif
-
-  #ifndef NO_BLYNK
-    blynk_timer_1.setInterval(PUBLISH_DELAY, publish1);
-    blynk_timer_2.setTimeout(1*PUBLISH_DELAY/4, [](){blynk_timer_2.setInterval(PUBLISH_DELAY, publish2);});
-    blynk_timer_3.setTimeout(2*PUBLISH_DELAY/4, [](){blynk_timer_3.setInterval(PUBLISH_DELAY, publish3);});
-    blynk_timer_4.setTimeout(3*PUBLISH_DELAY/4, [](){blynk_timer_4.setInterval(PUBLISH_DELAY, publish4);});
-    Blynk.begin(blynkAuth.c_str());
-  #endif
+  Particle.function("HOLD", particleHold);
+  Particle.function("SET",  particleSet);
+  blynk_timer_1.setInterval(PUBLISH_DELAY, publish1);
+  blynk_timer_2.setTimeout(1*PUBLISH_DELAY/4, [](){blynk_timer_2.setInterval(PUBLISH_DELAY, publish2);});
+  blynk_timer_3.setTimeout(2*PUBLISH_DELAY/4, [](){blynk_timer_3.setInterval(PUBLISH_DELAY, publish3);});
+  blynk_timer_4.setTimeout(3*PUBLISH_DELAY/4, [](){blynk_timer_4.setInterval(PUBLISH_DELAY, publish4);});
+  Blynk.begin(blynkAuth.c_str());
 
   #ifdef PHOTON
     if ( debug>1 ) { sprintf(buffer, "Particle Photon.  bare = %d,\n", bare); Serial.print(buffer); };
@@ -320,49 +304,47 @@ void loop()
     else Serial.printf("*******************unknown controlMode %d\n", sen->controlMode);
   }
 
-  #ifndef NO_WEATHER_HOOK
-    // Get OAT webhook and time it 
-    if ( query    )
+  // Get OAT webhook and time it 
+  if ( query    )
+  {
+    unsigned long then = millis();
+    getWeather();
+    unsigned long now = millis();
+    if ( debug>0 ) Serial.printf("weather update=%f\n", float(now-then)/1000.0);
+    if ( weatherGood )
     {
-      unsigned long then = millis();
-      getWeather();
-      unsigned long now = millis();
-      if ( debug>0 ) Serial.printf("weather update=%f\n", float(now-then)/1000.0);
-      if ( weatherGood )
+      if (pubList.weatherData.locationStr != "" && debug>3)
       {
-        if (pubList.weatherData.locationStr != "" && debug>3)
-        {
-          if(debug>3) Serial.println("");
-          Serial.println("At location: " + pubList.weatherData.locationStr);
-        }
+        if(debug>3) Serial.println("");
+        Serial.println("At location: " + pubList.weatherData.locationStr);
+      }
 
-        // Solar
-        if ( pubList.weatherData.weatherStr!= "" )  sun_wall->getWeather(pubList.weatherData.weatherStr);
-        if ( pubList.weatherData.visStr!= "" ) sun_wall->getVisibility(pubList.weatherData.visStr);
-        if ( debug>3 ) Serial.printf("The weather is %d: %s, cover=%7.3f, visibility=%7.3f, solar heat = %7.3f\n",
-          sun_wall->the_weather(), sun_wall->weatherStr().c_str(), sun_wall->cover(), sun_wall->visibility(), sun_wall->solar_heat());
+      // Solar
+      if ( pubList.weatherData.weatherStr!= "" )  sun_wall->getWeather(pubList.weatherData.weatherStr);
+      if ( pubList.weatherData.visStr!= "" ) sun_wall->getVisibility(pubList.weatherData.visStr);
+      if ( debug>3 ) Serial.printf("The weather is %d: %s, cover=%7.3f, visibility=%7.3f, solar heat = %7.3f\n",
+        sun_wall->the_weather(), sun_wall->weatherStr().c_str(), sun_wall->cover(), sun_wall->visibility(), sun_wall->solar_heat());
 
-        // Temperature
-        if ( pubList.weatherData.tempStr != "" )
+      // Temperature
+      if ( pubList.weatherData.tempStr != "" )
+      {
+        sen->OAT = atof(pubList.weatherData.tempStr);
+        if (debug>2)
         {
-          sen->OAT = atof(pubList.weatherData.tempStr);
-          if (debug>2)
-          {
-            if (debug<4) Serial.println("");
-            Serial.println("The temp is: " + pubList.weatherData.tempStr + String(" *F"));
-            Serial.flush();
-            Serial.printf("raw OAT=%f\n", sen->OAT);
-            Serial.flush();
-          }
-        }
-        if (pubList.weatherData.windStr != "" && debug>3)
-        {
-            Serial.println("The wind is: " + pubList.weatherData.windStr);
+          if (debug<4) Serial.println("");
+          Serial.println("The temp is: " + pubList.weatherData.tempStr + String(" *F"));
+          Serial.flush();
+          Serial.printf("raw OAT=%f\n", sen->OAT);
+          Serial.flush();
         }
       }
-      if ( debug>4 ) Serial.printf("OAT=%f at %s\n", sen->OAT, hmString.c_str());
+      if (pubList.weatherData.windStr != "" && debug>3)
+      {
+          Serial.println("The wind is: " + pubList.weatherData.windStr);
+      }
     }
-  #endif
+    if ( debug>4 ) Serial.printf("OAT=%f at %s\n", sen->OAT, hmString.c_str());
+  }
 
   // Control and outputs
   if ( control )
@@ -457,178 +439,3 @@ void loop()
 
 
 } // loop
-
-
-// Publish1 Blynk
-void publish1(void)
-{
-  #ifndef NO_BLYNK
-    if (debug>4) Serial.printf("Blynk write1\n");
-    Blynk.virtualWrite(V0,  pubList.cmd);
-    Blynk.virtualWrite(V2,  pubList.Ta);
-    Blynk.virtualWrite(V3,  pubList.hum);
-    // Blynk.virtualWrite(V4,  intentionally blank; used elsewhere);
-    Blynk.virtualWrite(V5,  pubList.Tp);
-  #endif
-}
-
-
-// Publish2 Blynk
-void publish2(void)
-{
-  #ifndef NO_BLYNK
-    if (debug>4) Serial.printf("Blynk write2\n");
-    Blynk.virtualWrite(V7,  pubList.held);
-    Blynk.virtualWrite(V8,  pubList.T);
-    Blynk.virtualWrite(V9,  pubList.potDmd);
-    Blynk.virtualWrite(V10, pubList.lastChangedWebDmd);
-    Blynk.virtualWrite(V11, pubList.set);
-  #endif
-}
-
-
-// Publish3 Blynk
-void publish3(void)
-{
-  #ifndef NO_BLYNK
-    if (debug>4) Serial.printf("Blynk write3\n");
-    Blynk.virtualWrite(V12, pubList.solar_heat);
-    Blynk.virtualWrite(V13, pubList.Ta);
-    Blynk.virtualWrite(V14, pubList.I2C_status);
-    Blynk.virtualWrite(V15, pubList.hmString);
-    Blynk.virtualWrite(V16, pubList.duty);
-  #endif
-}
-
-
-// Publish4 Blynk
-void publish4(void)
-{
-  #ifndef NO_BLYNK
-    if (debug>4) Serial.printf("Blynk write4\n");
-    Blynk.virtualWrite(V17, false);
-    Blynk.virtualWrite(V18, pubList.OAT);
-    Blynk.virtualWrite(V19, pubList.Ta_obs);
-    Blynk.virtualWrite(V20, pubList.heat_o);
-  #endif
-}
-
-
-#ifndef NO_BLYNK
-// Attach a Slider widget to the Virtual pin 4 IN in your Blynk app
-// - and control the web desired temperature.
-// Note:  there are separate virtual IN and OUT in Blynk.
-BLYNK_WRITE(V4) {
-    if (param.asInt() > 0)
-    {
-        pubList.webDmd = param.asDouble();
-    }
-}
-#endif
-
-
-#ifndef NO_PARTICLE
-int particleSet(String command)
-{
-  int possibleSet = atoi(command);
-  if (possibleSet >= MINSET && possibleSet <= MAXSET)
-  {
-    pubList.webDmd = double(possibleSet);
-    return possibleSet;
-  }
-  else return -1;
-}
-#endif
-
-
-#ifndef NO_BLYNK
-// Attach a switch widget to the Virtual pin 6 in your Blynk app - and demand continuous web control
-// Note:  there are separate virtual IN and OUT in Blynk.
-BLYNK_WRITE(V6) {
-    pubList.webHold = param.asInt();
-}
-#endif
-#ifndef NO_PARTICLE
-int particleHold(String command)
-{
-  if (command == "HOLD")
-  {
-    pubList.webHold = true;
-    return 1;
-  }
-  else
-  {
-    pubList.webHold = false;
-    return 0;
-  }
-}
-#endif
-
-
-//Updates Weather Forecast Data
-#ifndef NO_WEATHER_HOOK
-void getWeather()
-{
-  if (debug>2)
-  {
-    Serial.print("Requesting Weather from webhook...");
-    Serial.flush();
-  }
-  weatherGood = false;
-  Particle.publish("get_weather");  // publish the event that will trigger our webhook
-
-  unsigned long wait = millis();
-  while ( !weatherGood && (millis()<wait+WEATHER_WAIT) ) //wait for subscribe to kick in or WEATHER_WAIT secs
-  {
-    //Tells the core to check for incoming messages from partile cloud
-    Particle.process();
-    delay(50);
-  }
-  if (!weatherGood)
-  {
-    if (debug>3) Serial.print("Weather update failed.  ");
-    badWeatherCall++;
-    if (badWeatherCall > 2)
-    {
-      //If 3 webhook calls fail in a row, Print fail
-      if (debug>0) Serial.println("Webhook Weathercall failed!");
-      badWeatherCall = 0;
-    }
-  }
-  else
-  {
-    badWeatherCall = 0;
-  }
-} //End of getWeather function
-
-
-// This function will get called when weather data comes in
-void gotWeatherData(const char *name, const char *data)
-{
-  // Important note!  -- Right now the response comes in 512 byte chunks.
-  //  This code assumes we're getting the response in large chunks, and this
-  //  assumption breaks down if a line happens to be split across response chunks.
-  //
-  // Sample data:
-  //  <location>Minneapolis, Minneapolis-St. Paul International Airport, MN</location>
-  //  <weather>Overcast</weather>
-  //  <temperature_string>26.0 F (-3.3 C)</temperature_string>
-  //  <temp_f>26.0</temp_f>
-  //  <visibility_mi>10.00</visibility_mi>
-  String str          = String(data);
-  pubList.weatherData.locationStr = tryExtractString(str, "<location>", "</location>");
-  pubList.weatherData.weatherStr = tryExtractString(str, "<weather>", "</weather>");
-  pubList.weatherData.tempStr = tryExtractString(str, "<temp_f>", "</temp_f>");
-  pubList.weatherData.windStr = tryExtractString(str, "<wind_string>", "</wind_string>");
-  pubList.weatherData.visStr = tryExtractString(str, "<visibility_mi>", "</visibility_mi>");
-
-  if ( pubList.weatherData.tempStr != "" )
-  {
-    weatherGood = true;
-    #ifndef TESTING_WEATHER
-      updateweatherhour = Time.hour();  // To check once per hour
-    #endif
-  }
-}
-
-#endif  // weather hook

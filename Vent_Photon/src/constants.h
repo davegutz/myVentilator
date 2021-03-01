@@ -34,10 +34,6 @@
 
 
 // Disable flags if needed for debugging, usually commented
-//#define NO_WEATHER_HOOK       // Turn off webhook weather lookup.  Will get default OAT = 30F
-//#define WEATHER_BUG           // Turn on bad weather return for debugging
-//#define NO_BLYNK              // Turn off Blynk functions.  Interact using Particle cloud
-//#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
 //#define BARE                  // ****** see local_config.h  ****Don't change it here
 #include "local_config.h"       // this is not in GitHub repository.  Normally empty file
 
@@ -65,7 +61,7 @@
 #define WEATHER_WAIT     900UL      // Time to wait for weather webhook, ms (900UL)
 #define GMT              -5         // Enter time different to zulu (does not respect DST)
 #define USE_DST          1          // Whether to apply DST or not, 0 or 1
-#define READ_TP_DELAY    1800000UL  // Time between Tp read shutdowns (1800000UL = 30 min)
+#define READ_TP_DELAY    3600000UL  // Time between Tp read shutdowns (1800000UL = 30 min)
 #define DWELL_TP_DELAY   30000UL    // Time between Tp read shutdowns (30000UL = 30 sec)
 const int EEPROM_ADDR = 1;          // Flash address
 

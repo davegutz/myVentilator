@@ -357,7 +357,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
 //if time>-17000 then, pause; end
 //if time>-10000 then, pause; end
 //if time>-18000 then, pause; end
-if time>-25000 then, pause; end
+//if time>-25000 then, pause; end
 
 
     // Consolidate the linear model

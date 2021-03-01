@@ -248,7 +248,7 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
         uint8_t seconds   = 0; // forget seconds
     #endif
     sprintf(tempStr, "%4u-%02u-%02uT%02u:%02u:%02u", int(year), month, day, hours, minutes, seconds);
-    return ((((float(year-2021)*365.0+float(day))*24.0 + float(hours))*60.0 + float(minutes))*60.0 + \
+    return (((( (float(year-2021)*12 + float(month))*30.4375 + float(day))*24.0 + float(hours))*60.0 + float(minutes))*60.0 + \
                         float(seconds));
 }
 
