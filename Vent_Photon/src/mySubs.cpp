@@ -37,10 +37,11 @@ extern char buffer[256];
 void publish_particle(unsigned long now)
 {
   sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
-  %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
+  %7.3f,%ld, %7.3f, %7.1f, %7.1f, %7.1f, %7.3f, %7.3f, %c", \
     pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.set-HYST, pubList.Tp,
     pubList.Ta, pubList.cmd, pubList.T, pubList.OAT, pubList.Ta_obs, pubList.err, pubList.prop,
-    pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o, '\0');
+    pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o,
+    pubList.qduct, pubList.mdot, pubList.mdot_lag, '\0');
   
   if ( debug>2 ) Serial.println(buffer);
   if ( Particle.connected() )
@@ -67,17 +68,18 @@ void publish_particle(unsigned long now)
 // Text header
 void print_serial_header(void)
 {
-  Serial.println(F("unit,hm, cTime, set,Tp,Ta,cmd,  T,OAT,Ta_o,  err,prop,integ,cont,  pcnt_pot,duty,Ta_filt,  solar,  heat_o"));
+  Serial.println(F("unit,hm, cTime, set,Tp,Ta,cmd,  T,OAT,Ta_o,  err,prop,integ,cont,  pcnt_pot,duty,Ta_filt,  solar,  heat_o, qduct, mdot, mdot_lag,"));
 }
 
 // Inputs serial print
 void serial_print_inputs(unsigned long now, double T)
 {
   sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
-  %7.3f,%ld, %7.3f, %7.1f, %7.1f, %c", \
+  %7.3f,%ld, %7.3f, %7.1f, %7.1f, %7.1f, %7.3f, %7.3f, %c", \
     pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.set-HYST, pubList.Tp,
     pubList.Ta, pubList.cmd, pubList.T, pubList.OAT, pubList.Ta_obs, pubList.err, pubList.prop,
-    pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o, '\0');
+    pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o, 
+    pubList.qduct, pubList.mdot, pubList.mdot_lag, '\0');
   Serial.println(buffer);
 }
 
@@ -125,6 +127,9 @@ boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, R
     room->update(reset, T, duct->Qduct(), duct->mdot(), duct->mdot_lag(), M_TK, sen->OAT,
       (con->heat_o + sun_wall->solar_heat()), sen->Ta);
     sen->Ta_obs = room->Ta();
+    sen->qduct = duct->Qduct();
+    sen->mdot = duct->mdot();
+    sen->mdot_lag = duct->mdot_lag();
 
     // MAXIM conversion 1-wire Tp plenum temperature
     if ( sensor_plenum->read() ) sen->Tp = sensor_plenum->fahrenheit() + (TP_TEMPCAL);
@@ -151,6 +156,9 @@ boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, R
         (con->heat_o+sun_wall->solar_heat()), con->set);
     sen->Ta_obs = room->Ta();
     sen->Ta = room->Ta();
+    sen->qduct = duct->Qduct();
+    sen->mdot = duct->mdot();
+    sen->mdot_lag = duct->mdot_lag();
   }
   sen->Ta_filt = TaSenseFilt->calculate( sen->Ta, reset, T);
 

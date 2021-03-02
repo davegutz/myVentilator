@@ -54,14 +54,14 @@ function plot_compare(%zoom, %loc)
     subplot(211)
     overplot(['P.D.Tp_Sense', 'P.D.set', 'P.D.Ta_Sense', 'P.D.Ta_Filt', 'P.D.cmd_scaled', 'P.D.Ta_Obs'], ['r-', 'g-', 'm-', 'k--', 'b-', 'c--'], 'Data temp compare', 'time, s', %zoom)
     subplot(212)
-    overplot(['P.D.solar_heat', 'P.D.heat_o'], ['r-', 'b-'], 'Data heat', 'time, s', %zoom)
+    overplot(['P.D.solar_heat', 'P.D.heat_o', 'P.D.qduct', 'P.D.mdot', 'P.D.mdot_lag'], ['r-', 'b-', 'm-', 'k-', 'k--'], 'Data heat', 'time, s', %zoom)
 
 
     figs($+1) = figure("Figure_name", 'Tracker -'+data_file, "Position", [%loc, %size]);
     subplot(211)
     overplot(['P.D.Tp_Sense', 'P.D.Ta_Sense', 'P.D.duty_scaled'], ['r-', 'k-', 'g-'], 'Tp', 'time, s', %zoom)
     subplot(212)
-    overplot(['P.D.solar_heat', 'P.D.heat_o'], ['r-', 'b-'], 'Data heat', 'time, s', %zoom)
+    overplot(['P.D.solar_heat', 'P.D.heat_o', 'P.D.qduct'], ['r-', 'b-', 'm-'], 'Data heat', 'time, s', %zoom)
 
 endfunction
 

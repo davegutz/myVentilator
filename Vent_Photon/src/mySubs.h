@@ -76,11 +76,14 @@ struct Sensors
   bool held;          // Status of webHold command in Photon
   int potDmd;         // Pot value, deg F
   Mode controlMode;   // Present control mode
+  double qduct;       // heat from duct airflow, BTU/hr
+  double mdot;        // air flow in duct, lbm/hr
+  double mdot_lag;    // lagged air flow in duct, lbm/hr
   Sensors(void) {}
   Sensors(double Ta, double Tp, double Ta_obs, double Ta_filt,
     double OAT, int I2C_status, double pcnt_pot, double pcnt_tach, double last_Tp,
     double T, double potValue, double hum, bool webHold, bool lastHold, bool held,
-    int potDmd, Mode controlMode)
+    int potDmd, Mode controlMode, double qduct, double mdot, double mdot_lag)
   {
     this->Ta = Ta;
     this->Tp = Tp;
@@ -99,6 +102,9 @@ struct Sensors
     this->held = held;
     this->potDmd = potDmd;
     this->controlMode = controlMode;
+    this->qduct = qduct;
+    this->mdot = mdot;
+    this->mdot_lag = mdot_lag;
   }
 };
 
@@ -172,6 +178,9 @@ struct Publish
   bool webHold;
   double webDmd;
   WeatherData weatherData;
+  double qduct;
+  double mdot;
+  double mdot_lag;
 };
 
 

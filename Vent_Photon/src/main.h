@@ -163,7 +163,7 @@ void setup()
 void loop()
 {
   static Sensors *sen = new Sensors(NOMSET, NOMSET, NOMSET, NOMSET, 32, 0, 0, 0, NOMSET, 0,
-                              NOMSET, 999, true, true, true, NOMSET, POT);                                      // Sensors
+                              NOMSET, 999, true, true, true, NOMSET, POT, 0, 0, 0);                                      // Sensors
   static Control *con = new Control(0.0, 0.0, 0, 0.0, NOMSET, NOMSET, 0, NOMSET);                               // Control
   static PID *pid = new PID(C_G, C_TAU, C_MAX, C_MIN, C_LLMAX, C_LLMIN, 0, 0, C_DB, 0, 0, 0);                   // Main PID
   static PID *pid_o = new PID(C_G, C_TAU, C_MAX_O, C_MIN_O, C_LLMAX_O, C_LLMIN_O, 0, 0, C_DB_O, 0, 0, 0);       // Observer PID
@@ -415,6 +415,9 @@ void loop()
     pubList.held = sen->held;
     pubList.potDmd = sen->potDmd;
     pubList.lastChangedWebDmd = con->lastChangedWebDmd;
+    pubList.qduct = sen->qduct;
+    pubList.mdot = sen->mdot;
+    pubList.mdot_lag = sen->mdot_lag;
     sen->webHold = pubList.webHold;
     con->webDmd = pubList.webDmd;
 
