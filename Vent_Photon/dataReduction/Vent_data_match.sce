@@ -74,11 +74,16 @@ closed_loop = %f; do_poles = %f;
 //run_name = 'vent_2021-02-22T03-46_open'; M.dTpTk = 80; M.t_door_open = -17642; M.Qlk = 669-15.4*M.Glk;  M.Qlkd = 900-42.73*M.Glkd;
 
 // Normal cooldown then normal shutoff for night.  Clock timer on/off not included in scilab model (sys_on/sys_off)
-run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720; M.mdotl_decr = 6000; M.Qlk = -100; M.Qlkd = 736-42.73*M.Glkd;
+//run_name = 'vent_2021-02-23T19-00_';M.t_sys_off = -20700;M.t_sys_on = -2720; M.mdotl_decr = 6000; M.Qlk = -100; M.Qlkd = 736-42.73*M.Glkd;
 
 // Fan on;  close door at -20741; crack door at -17130; open door  at -11000
 // For this one, I think conduction partially blocked when door cracked.   Shouldn't use this one
 //run_name = 'vent_2021-02-17T04-00_open_open_100'; M.t_door_close = -20741; M.t_door_crack =  -17130; M.t_door_open = -11000; M.Qlk = -480; M.Qlkd = -4000; M.t1 = 1200; M.t2 = 2000; M.Gconv = 120;
+
+
+// Forcing various duty values through a cold day.   At 11 am OAT=19, Tw=65, Tk=70
+run_name = 'vent_2021-03-02T04-31_'; M.Tk=70; M.Qlkd = -4000; 
+
 
 // TODO:  test convection transitions various duty cycles
 // TODO:  redo door cracked to open it a bit more but without engaging convection

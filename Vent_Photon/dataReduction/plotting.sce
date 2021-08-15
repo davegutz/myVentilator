@@ -176,7 +176,7 @@ function plot_model(%zoom, %loc)
     subplot(224)
     overplot(['P.M.Ta', 'P.B.Ta_Sense', 'P.B.Ta_Filt', 'P.M.Tw', 'P.M.Tass', 'P.M.Twss', 'P.M.Tkit'], ['k-', 'c--', 'g-', 'k--', 'r--', 'b--', 'c--'], 'Duct', 'time, s', %zoom)
     subplot(223)
-    overplot(['P.M.dQa', 'P.M.Qmatch', 'P.M.Qconv', 'P.M.Qleak', 'P.M.QleakD'], ['r-', 'b--', 'g-', 'k-', 'b-'], 'Flux', 'time, s', %zoom)
+    overplot(['P.M.dQa', 'P.M.Qmatch', 'P.M.Qconv', 'P.M.Qleak', 'P.M.QleakD', 'P.B.solar_heat'], ['r-', 'm--', 'g-', 'k-', 'b-', 'r--'], 'Flux', 'time, s', %zoom)
     subplot(222)
     overplot(['P.D.Tp_Sense'], ['r-'], 'Tp', 'time, s', %zoom)
 

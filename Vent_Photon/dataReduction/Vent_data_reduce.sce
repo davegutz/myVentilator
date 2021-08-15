@@ -62,5 +62,9 @@ mfprintf(doubtfd, 'doubtf.csv debug output of HR4C_data_reduce.sce\n');
 //run_name = 'vent_2021-02-22T03-46_open';force_init_ta = %t; dTw_init = -20; // close door at -60000; crack door at -59000; open door at -54000
 //run_name = 'vent_2021-02-17T04-00_open_open_100';force_init_ta = %t; dTw_init = -20; // close door at -60000; crack door at -59000; open door at -54000
 
+// Forcing various duty values through a cold day
+//run_name = 'vent_2021-03-02T04-31_'; 
+
 run_name = 'debug';
+
 exec('vent_data_reduce_driver.sce');
