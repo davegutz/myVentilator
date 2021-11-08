@@ -185,6 +185,7 @@
 //
 
 
+
 //        C.time($+1) = time;
 //        C.cmd($+1) = cmd;
 //        C.hduct($+1) = hduct;
@@ -281,7 +282,7 @@ function [M, a, b, c, dMdot_dCmd] = total_model(time, dt, Tp, OAT, %cmd, reset, 
         mdot_raw = 0;
         cfm = 0;
     end
-    otherHeat = 0;
+    otherHeat = B.solar_heat(i);
 
     // Turn convection on/off
     Sconv = (1-max(min((mdot_raw-M.t1)/(M.t2-M.t1), 1), 0));
