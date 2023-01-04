@@ -2,14 +2,15 @@
 # Stream Particle cloud data from Vent_Photon.ino to local files for local use.
 # Edit Vent_Photon in Particle Workbench Visual c++ (main.h).
 # Get cURL link from https://console.particle.io/events.   Click on "view events on a terminal"
-# That's wehre the link to STREAM_URL came from.
+# That's where the link to STREAM_URL came from.
 # Running:
 # 	install python:  3.6.8 is latest that supports curl.   Pick option to add python to path.
 # 	install dependencies:  cygwin> python -m pip install pycurl certifi
 #   go to particle.io and get token:https://console.particle.io/devices/
 #           click on device.   Select the little square icon.   Copy token.  Paste into STREAM_URL below
-#	running:   	cygwin> cd /cygdrive/c/Users/Dave/Documents/GitHub/myVentilator/Vent_Photon/dataReduction
-#				cygwin> python curlParticle.py
+#	running:   	PS> cd /cygdrive/c/Users/daveg/Documents/GitHub/myVentilator/Vent_Photon/dataReduction
+#				PS> python curlParticle.py
+#  ************if it seems to quit right away, try browsing to the STREAM_URL below.   Token may not match.   See 'cURL link' above
 # Plotting:
 #	install sciLab 6.1 or later.  (Didn't work with 5.5.2)
 # 	install pdftk (use win8 compatibility)
@@ -31,7 +32,7 @@ except ImportError:
     from io import StringIO, BytesIO
 import json
 
-STREAM_URL = "https://api.particle.io/v1/devices/events?access_token=9661ef494e1719ef619ff2c1e92742e40ddfac0d"
+STREAM_URL = "https://api.particle.io/v1/devices/290037001551353531343431/events?access_token=74d040345f435c0edd6ed09956a4a960568d7686"
 DEVICE_NAME = 'vent'
 cts = datetime.datetime.now().isoformat()
 cts = cts.replace(':', '-')
@@ -76,4 +77,5 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    # sys.exit(main())
+    main()

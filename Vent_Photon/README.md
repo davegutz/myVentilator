@@ -184,9 +184,9 @@ System gain ~3 deg F for 100% fan
   
  * Author: Dave Gutz davegutz@alum.mit.edu  repository GITHUB myVentilator
  
-  To get debug data
+  To get debug data for 'proto'
   1.  Set debug = 2 in constants.h
-  2.  Rebuild and upload
+  2.  Rebuild and upload to 'proto'
   3.  Start CoolTerm_0.stc
 
   Requirements:

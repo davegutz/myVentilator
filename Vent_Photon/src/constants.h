@@ -116,7 +116,7 @@ const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain
 #define M_TRANS_CONV_HIGH   700     // mdot threshold to end transition to 0 qconv
 #define M_GAIN_O        6           // Change duty into heat for model observer control  btu/hr/duty
 
-#define C_G             0.150       // Control gain, r/s = %/F (0.030)
+#define C_G             0.150       // Control gain, r/s = %/F (0.150)
 #define C_TAU           600         // Control lead, s  (600)
 #define C_DB            0.1         // Deadband in error, F
 #define C_MAX           100         // Integral and overall max limit, %
