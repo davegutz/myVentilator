@@ -5,12 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="11fcedf0-fca4-4225-9c4f-5e6f1b6f2b6c" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../.vscode/settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/../.vscode/settings.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/curlParticle.py" beforeDir="false" afterPath="$PROJECT_DIR$/curlParticle.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/debug.csv" beforeDir="false" afterPath="$PROJECT_DIR$/debug.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../pot_src/constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/../pot_src/constants.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../pot_src/main.h" beforeDir="false" afterPath="$PROJECT_DIR$/../pot_src/main.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../src/constants.h" beforeDir="false" afterPath="$PROJECT_DIR$/../src/constants.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../src/local_config.h" beforeDir="false" afterPath="$PROJECT_DIR$/../src/local_config.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../src/main.h" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../src/myCloud.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../src/myCloud.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

@@ -46,9 +46,9 @@
 #define TA_TEMPCAL -5           // Honeywell calibrate temp sense (0), F
 #define HW_HUMCAL -2            // Honeywell calibrate humidity sense (-2), %
 #define ONE_DAY_MILLIS 86400000 // Number of milliseconds in one day (24*60*60*1000)
-#define NOMSET 67               // Nominal setpoint for modeling etc, F
-#define MINSET 50               // Minimum setpoint allowed (50), F
-#define MAXSET 75               // Maximum setpoint allowed (75), F
+#define NOMSET 68               // Nominal setpoint for modeling etc (68), F
+#define MINSET 60               // Minimum setpoint allowed (60), F
+#define MAXSET 70               // Maximum setpoint allowed (70), F
 #define CONTROL_DELAY    2000UL     // Control law wait, ms (5000)
 #define PUBLISH_DELAY    10000UL    // Time between cloud updates, ms (30000UL)
 #define PUBLISH_PARTICLE_DELAY 2000UL // Particle cloud updates (2000UL)

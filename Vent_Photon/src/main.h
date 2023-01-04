@@ -54,10 +54,12 @@ using namespace std;
 /* This file myAuth.h is not in Git repository because it contains personal information.
 Make it yourself.   It should look like this, with your personal authorizations:
 (Note:  you don't need a valid number for one of the blynkAuth if not using it.)
-#ifndef BARE_PHOTON
-  const   String      blynkAuth     = "4f1de4949e4c4020882efd3e61XXX6cd"; // Photon thermostat
-#else
-  const   String      blynkAuth     = "d2140898f7b94373a78XXX158a3403a1"; // Bare photon
+#ifdef USE_BLYNK
+  #ifndef BARE_PHOTON
+    const   String      blynkAuth     = "4f1de4949e4c4020882efd3e61XXX6cd"; // Photon thermostat
+  #else
+    const   String      blynkAuth     = "d2140898f7b94373a78XXX158a3403a1"; // Bare photon
+  #endif
 #endif
 */
 // Dependent includes.   Easier to debug code if remove unused include files
@@ -65,7 +67,9 @@ Make it yourself.   It should look like this, with your personal authorizations:
 #include "mySync.h"
 #include "mySubs.h"
 #include "myCloud.h"
-#include "blynk.h"              // Only place this can appear is top level main.h
+#ifdef USE_BLYNK
+  #include "blynk.h"              // Only place this can appear is top level main.h
+#endif
 
 extern const int8_t debug = 2;  // Level of debug printing (3)
 extern Publish pubList;
@@ -77,9 +81,11 @@ int badWeatherCall  = 0;
 long updateweatherhour;         // Last hour weather updated
 bool weatherGood;               // webhook OAT lookup successful, T/F
 
-extern BlynkParticle Blynk;      // Blynk object
-extern BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4; // Time Blynk events
-BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4;        // Time Blynk events
+#ifdef USE_BLYNK
+  extern BlynkParticle Blynk;      // Blynk object
+  extern BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4; // Time Blynk events
+  BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4;        // Time Blynk events
+#endif
 
 // Global locals
 char buffer[256];               // Serial print buffer
@@ -136,12 +142,13 @@ void setup()
   Particle.connect();
   Particle.function("HOLD", particleHold);
   Particle.function("SET",  particleSet);
-  blynk_timer_1.setInterval(PUBLISH_DELAY, publish1);
-  blynk_timer_2.setTimeout(1*PUBLISH_DELAY/4, [](){blynk_timer_2.setInterval(PUBLISH_DELAY, publish2);});
-  blynk_timer_3.setTimeout(2*PUBLISH_DELAY/4, [](){blynk_timer_3.setInterval(PUBLISH_DELAY, publish3);});
-  blynk_timer_4.setTimeout(3*PUBLISH_DELAY/4, [](){blynk_timer_4.setInterval(PUBLISH_DELAY, publish4);});
-  Blynk.begin(blynkAuth.c_str());
-
+  #ifdef USE_BLYNK
+    blynk_timer_1.setInterval(PUBLISH_DELAY, publish1);
+    blynk_timer_2.setTimeout(1*PUBLISH_DELAY/4, [](){blynk_timer_2.setInterval(PUBLISH_DELAY, publish2);});
+    blynk_timer_3.setTimeout(2*PUBLISH_DELAY/4, [](){blynk_timer_3.setInterval(PUBLISH_DELAY, publish3);});
+    blynk_timer_4.setTimeout(3*PUBLISH_DELAY/4, [](){blynk_timer_4.setInterval(PUBLISH_DELAY, publish4);});
+    Blynk.begin(blynkAuth.c_str());
+  #endif
   #ifdef PHOTON
     if ( debug>1 ) { sprintf(buffer, "Particle Photon.  bare = %d,\n", bare); Serial.print(buffer); };
   #else
@@ -201,7 +208,9 @@ void loop()
 
   // Top of loop
   // Start Blynk
-  Blynk.run(); blynk_timer_1.run(); blynk_timer_2.run(); blynk_timer_3.run(); blynk_timer_4.run(); 
+  #ifdef USE_BLYNK
+    Blynk.run(); blynk_timer_1.run(); blynk_timer_2.run(); blynk_timer_3.run(); blynk_timer_4.run(); 
+  #endif
 
   // Request time synchronization from the Particle Cloud once per day
   if (millis() - lastSync > ONE_DAY_MILLIS)
@@ -273,29 +282,32 @@ void loop()
       if ( debug>6 ) Serial.printf("Setpoint based on pot:  %f\n", t);
       lastChangedPot = sen->potValue;
   }
-  //
-  // Otherwise if web Blynk has adjusted setpoint (overridden temporarily by pot, until next web adjust)
-  // The held construct ensures that temp setting latched in by HOLD in Blynk cannot be accidentally changed
-  // The sen->webHold construct ensures that pushing HOLD in Blynk causes control to snap to the web demand
-  else if ( ((abs(con->webDmd-con->lastChangedWebDmd)>0)  & (!sen->held)) | (sen->webHold & (sen->webHold!=sen->lastHold)) )
-  {
-    sen->controlMode     = WEB;
-    double t = min(max(MINSET, con->webDmd), MAXSET);
-    setSaveDisplayTemp(t, sen, con);
-    con->lastChangedWebDmd   = con->webDmd;
-  }
+  #ifdef USE_BLYNK
+    // Otherwise if web Blynk has adjusted setpoint (overridden temporarily by pot, until next web adjust)
+    // The held construct ensures that temp setting latched in by HOLD in Blynk cannot be accidentally changed
+    // The sen->webHold construct ensures that pushing HOLD in Blynk causes control to snap to the web demand
+    else if ( ((abs(con->webDmd-con->lastChangedWebDmd)>0)  & (!sen->held)) | (sen->webHold & (sen->webHold!=sen->lastHold)) )
+    {
+      sen->controlMode     = WEB;
+      double t = min(max(MINSET, con->webDmd), MAXSET);
+      setSaveDisplayTemp(t, sen, con);
+      con->lastChangedWebDmd   = con->webDmd;
+    }
+  #endif
   else if ( !sen->held )
   {
     sen->controlMode = AUTO;
     double t = min(max(MINSET, NOMSET), MAXSET);
     setSaveDisplayTemp(t, sen, con);
   }
-  if ( sen->webHold!=sen->lastHold )
-  {
-    sen->lastHold = sen->webHold;
-    sen->held = sen->webHold;
-    saveTemperature(int(con->set), int(con->webDmd), sen->held, EEPROM_ADDR, sen->Ta_obs);
-  }
+  #ifdef USE_BYNK
+    if ( sen->webHold!=sen->lastHold )
+    {
+      sen->lastHold = sen->webHold;
+      sen->held = sen->webHold;
+      saveTemperature(int(con->set), int(con->webDmd), sen->held, EEPROM_ADDR, sen->Ta_obs);
+    }
+  #endif
   if ( debug>3 )
   {
     if ( sen->controlMode==AUTO ) Serial.printf("*******************Setpoint AUTO, set=%7.1f\n", con->set);

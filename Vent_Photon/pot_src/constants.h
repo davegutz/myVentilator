@@ -33,7 +33,8 @@
 #endif
 
 //#define NO_CLOUD              // Turn off Particle cloud functions.  Interact using Blynk.
-//#define BARE                  // Run without peripherals
+#undef BARE                     // Run without peripherals
+#undef USE_BLYNK                // Run with Blynk (shutdown 1/1/2023)
 const int8_t debug = 3;         // Level of debug printing (3)
 #define TA_SENSOR 0x27          // Ambient room Honeywell temp sensor bus address (0x27)
 #define TP_TEMPCAL 0            // Maxim 1-wire plenum temp sense calibrate (0), F

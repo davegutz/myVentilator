@@ -133,7 +133,7 @@ double Tp_Sense = NOMSET;   // Sensed plenum temp, F
 double updateTime = 0.0;    // Control law update time, sec
 int numTimeouts = 0;        // Number of Particle.connect() needed to unfreeze
 bool webHold = false;       // Web permanence request
-int webDmd = 62;            // Web sched, F
+int webDmd = 68;            // Web sched, F
 
 #ifdef PHOTON
 byte pin_1_wire = D6; //Blinks with each heartbeat
