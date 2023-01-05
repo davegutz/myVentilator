@@ -320,9 +320,11 @@ void loop()
 
     }
 
-    // Latch on fan enable.   If temperature high, turn on.  If low, turn off.   If in-between and already on, leave on (hysteresis)
-    // Latch prevents cycling of fan as Tp cools on startup of fan.
-    if ( sen->Tp>TP_MIN_HI || ((sen->Tp>TP_MIN_LO) & (con->duty>0)) )
+    // Permission. If plenum temperature high, turn on.  If low, turn off.   If in-between and already on, leave on (hysteresis)
+    // Latch prevents cycling of fan as Tp cools on startup of fan
+    // Plenum temperature must be high otherwise cold air blows into room due to heat loss in duct
+    // Pot over-rides
+    if ( sen->Tp>TP_MIN_HI || ((sen->Tp>TP_MIN_LO) & (con->duty>0)) || sen->controlMode == POT )
       con->duty = min( uint32_t(con->cmd*255.0/100.0), uint32_t(255) );
     else
       con->duty = 0;
