@@ -143,10 +143,10 @@ void loop()
 {
   static Sensors *sen = new Sensors(NOMSET, NOMSET, NOMSET, NOMSET, 32., 0, 50., 50., NOMSET, 0., 50., 50., POT, 0., 0., 0.);
   static Control *con = new Control(0.0, 0.0, 0, 0.0, 0.0, NOMSET, 0);
-  static PID *pid = new PID(C_G, C_TAU, C_MAX, C_MIN, C_LLMAX, C_LLMIN, 0, 0, C_DB, 0, 0, 0);             // Main PID
-  static PID *pid_o = new PID(C_G, C_TAU, C_MAX_O, C_MIN_O, C_LLMAX_O, C_LLMIN_O, 0, 0, C_DB_O, 0, 0, 0); // Observer PID
+  static PID *pid = new PID(C_G/S_FANS, C_TAU, C_MAX, C_MIN, C_LLMAX, C_LLMIN, 0, 0, C_DB, 0, 0, 0);             // Main PID
+  static PID *pid_o = new PID(C_G/S_FANS, C_TAU, C_MAX_O, C_MIN_O, C_LLMAX_O, C_LLMIN_O, 0, 0, C_DB_O, 0, 0, 0); // Observer PID
   static DuctTherm* duct = new DuctTherm("duct", M_AP_0, M_AP_1, M_AP_2, M_AQ_0, M_AQ_1, M_AQ_2, M_CPA, M_DUCT_DIA,
-    M_DUCT_TEMP_DROP, M_GLKD, M_QLKD, M_MDOTL_DECR, M_MDOTL_INCR, M_MUA, M_RHOA, M_SMDOT);
+    M_DUCT_TEMP_DROP, M_GLKD, M_QLKD, M_MDOTL_DECR, M_MDOTL_INCR, M_MUA, M_RHOA, M_SMDOT*S_FANS, S_FANS);
   static RoomTherm* room = new RoomTherm("room", M_CPA, M_DN_TADOT, M_DN_TWDOT, M_GCONV,
     M_GLK, M_QLK, M_RSA, M_RSAI, M_RSAO, M_TRANS_CONV_LOW, M_TRANS_CONV_HIGH);
   static General2_Pole* TaSenseFilt = new General2_Pole(double(READ_DELAY)/1000., 0.05, 0.80, 0.0, 120.); // Sensor noise and general loop filter

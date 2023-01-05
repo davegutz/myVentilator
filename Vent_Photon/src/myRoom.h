@@ -54,6 +54,7 @@ private:
     double Re_d_;           // Air Reynolds Number
     double rhoa_;           // Density of air, lbm/ft^3
     double Smdot_;          // Duct flow scalar
+    double Spress_;         // Duct press scalar
     double Tdso_;           // Duct flow discharge temperature, F
     double vel_;            // Duct flow, ft/hr
     double Tp_lagged_;      // Tp lagged with heat soak Tp_lag_;
@@ -64,7 +65,7 @@ public:
         const double aq_0, const double aq_1, const double aq_2, const double cpa,
         const double duct_dia, const double duct_temp_drop,
         const double glkd, const double qlkd, const double mdot_lag_decr, const double mdot_lag_incr,
-        const double mua, const double rhoa, const double Smdot);
+        const double mua, const double rhoa, const double Smdot, const double Spress);
     void update(const int reset, const double T, const double Tp,  const uint32_t duty, const double OAT);
     double cfm(void){return cfm_;};
     double mdot(void){return mdot_;};

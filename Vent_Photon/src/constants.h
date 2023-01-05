@@ -97,7 +97,7 @@ const uint32_t pwm_frequency = 5000;    // Photon pwm driver frequency, Hz. (ECM
 #define M_TK            68          // Kitchen temperature, F
 const double M_RSA = 1./M_HI/M_AW + M_RWALL/M_AW + 1./M_HO/M_AW;  // Effective resistance of air,  F-ft^2/(BTU/hr)
 const double M_RSAI = 1./M_HI/M_AW;                 // Resistance air to wall,  F-ft^2/(BTU/hr)
-const double M_RSAO = M_RWALL/M_AW + 1./M_HO/M_AW;    // Resistance wall to OAT, F-ft^2/(BTU/hr)
+const double M_RSAO = M_RWALL/M_AW + 1./M_HO/M_AW;  // Resistance wall to OAT, F-ft^2/(BTU/hr)
 const double M_DN_TADOT = 3600. * M_CPA * M_MAIR;   // Heat capacitance of air, (BTU/hr)  / (F/sec)
 const double M_DN_TWDOT = 3600. * M_CPW * M_MW;     // Heat capacitance of air, (BTU/hr)  / (F/sec)
 const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain when cmd = 0, BTU/hr. 
@@ -137,5 +137,7 @@ const double SUN_WALL_AREA = 8*10/2;  // Area of sunshine room wall impacted by 
 #define TP_FIRE       110   // Fire detection shutoff (110), F
 #define TIME_ON       4     // Time allowed on (4), hrs-24   
 #define TIME_OFF      23    // Time turn off for night (23), hrs-24
+
+#define S_FANS        1.5   // Scalar for number of fans.  If 1 fan, set to 1.  If 2 fans, estimate 1.5 flow. (1.5)
 
 #endif // CONSTANTS_H_

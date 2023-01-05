@@ -35,17 +35,17 @@ extern int8_t debug;
 DuctTherm::DuctTherm()
     : name_(""), ap_0_(0), ap_1_(0), ap_2_(0), aq_0_(0), aq_1_(0), aq_2_(0),
     duct_dia_(0), duct_temp_drop_(0), glkd_(0), mdot_lag_decr_(0),
-    mdot_lag_incr_(0), mua_(0), Qlkd_(0), qlkd_(0), rhoa_(0), Smdot_(0)
+    mdot_lag_incr_(0), mua_(0), Qlkd_(0), qlkd_(0), rhoa_(0), Smdot_(0), Spress_(0)
 {}
 
 DuctTherm::DuctTherm(const String name, const double ap_0, const double ap_1, const double ap_2,
         const double aq_0, const double aq_1, const double aq_2, const double cpa,
         const double duct_dia, const double duct_temp_drop,
         const double glkd, const double qlkd, const double mdot_lag_decr, const double mdot_lag_incr,
-         const double mua, const double rhoa,const double Smdot)
+         const double mua, const double rhoa,const double Smdot, const double Spress)
     : name_(name), ap_0_(ap_0), ap_1_(ap_1), ap_2_(ap_2), aq_0_(aq_0), aq_1_(aq_1), aq_2_(aq_2), cpa_(cpa),
     duct_dia_(duct_dia), duct_temp_drop_(duct_temp_drop), glkd_(glkd), mdot_lag_decr_(mdot_lag_decr),
-    mdot_lag_incr_(mdot_lag_incr), mua_(mua), Qlkd_(0), qlkd_(qlkd), rhoa_(rhoa), Smdot_(Smdot)
+    mdot_lag_incr_(mdot_lag_incr), mua_(mua), Qlkd_(0), qlkd_(qlkd), rhoa_(rhoa), Smdot_(Smdot), Spress_(Spress)
 {}
  
 // Calculate
@@ -54,7 +54,7 @@ double DuctTherm::flow_model_(const double fan_speed, const double rhoa, const d
 {
     cfm_ = Smdot_*(aq_2_ * fan_speed*fan_speed + aq_1_ * fan_speed + aq_0_);  // CFM
     mdot_ = cfm_ * rhoa_ * 60;   // lbm/hr
-    press_ = ap_2_ * fan_speed*fan_speed + ap_1_ * fan_speed + ap_0_; // in H2O
+    press_ = Spress_*(ap_2_ * fan_speed*fan_speed + ap_1_ * fan_speed + ap_0_); // in H2O
     vel_ = cfm_ / (3.1415926 * duct_dia_*duct_dia_ / 4) * 60;        // ft/hr
     Re_d_ = rhoa_ * vel_ * duct_dia_ / mua_;
     return ( mdot_ );
