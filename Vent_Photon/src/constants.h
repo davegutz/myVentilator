@@ -32,13 +32,8 @@
 #undef PHOTON
 #endif
 
-
 // Disable flags if needed for debugging, usually commented
-//#define BARE                  // ****** see local_config.h  ****Don't change it here
-#include "local_config.h"       // this is not in GitHub repository.  Normally empty file
-
-// Test feature usually commented
-//#define  FAKETIME                         // For simulating rapid time passing of schedule
+#include "local_config.h"
 
 // Constants always defined
 #define TA_SENSOR 0x27          // Ambient room Honeywell temp sensor bus address (0x27)
@@ -48,7 +43,7 @@
 #define ONE_DAY_MILLIS 86400000 // Number of milliseconds in one day (24*60*60*1000)
 #define NOMSET 68               // Nominal setpoint for modeling etc (68), F
 #define MINSET 60               // Minimum setpoint allowed (60), F
-#define MAXSET 70               // Maximum setpoint allowed (70), F
+#define MAXSET 68               // Maximum setpoint allowed (70), F
 #define CONTROL_DELAY    2000UL     // Control law wait, ms (5000)
 #define PUBLISH_DELAY    10000UL    // Time between cloud updates, ms (30000UL)
 #define PUBLISH_PARTICLE_DELAY 2000UL // Particle cloud updates (2000UL)
@@ -66,11 +61,11 @@
 const int EEPROM_ADDR = 1;          // Flash address
 
 #ifdef BARE
-#define BARE_PHOTON
-const boolean bare = true;  // Force continuous calibration mode to run with bare boards (false)
+    #define BARE_PHOTON
+    const boolean bare = true;  // Force continuous calibration mode to run with bare boards (false)
 #else
-#undef BARE_PHOTON
-const boolean bare = false;  // Force continuous calibration mode to run with bare boards (false)
+    #undef BARE_PHOTON
+    const boolean bare = false;  // Force continuous calibration mode to run with bare boards (false)
 #endif
 
 const uint32_t pwm_frequency = 5000;    // Photon pwm driver frequency, Hz. (ECMF needs 1-10kHz)
@@ -131,5 +126,16 @@ const double M_QCON = (M_QLK + 104) * 0.7;          // Model alignment heat gain
 
 const double SUN_WALL_AREA = 8*10/2;  // Area of sunshine room wall impacted by sun, ft^2
 #define SUN_WALL_REFLECTIVITY 0.8   // Fraction of energy rejected by wall
+
+#define POT_A_MAX     100.  // Max value of pot signal for manual mode (40.), %
+#define POT_A_MIN     60.   // Min value of pot signal for manual mode (0.), %
+#define POT_M_MAX     39.   // Max value of pot signal for manual mode (39. allows overtravel), %
+#define POT_M_MIN     1.    // Min value of pot signal for manual mode (1. allows overtravel), %
+
+#define TP_MIN_HI     74    // High end of Tp min check (74), F
+#define TP_MIN_LO     73    // Low end of Tp min check (73), F
+#define TP_FIRE       110   // Fire detection shutoff (110), F
+#define TIME_ON       4     // Time allowed on (4), hrs-24   
+#define TIME_OFF      23    // Time turn off for night (23), hrs-24
 
 #endif // CONSTANTS_H_

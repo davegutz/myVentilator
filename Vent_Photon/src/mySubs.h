@@ -1,7 +1,7 @@
 //
 // MIT License
 //
-// Copyright (C) 2021 - Dave Gutz
+// Copyright (C) 2023 - Dave Gutz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@
 #include <DS18.h>
 #include "myInsolation.h"
 
-enum Mode {POT, WEB, AUTO, SCHD}; // To keep track of mode
+enum Mode {POT, AUTO, NONE}; // To keep track of mode
 
 
 // Pins
@@ -71,19 +71,15 @@ struct Sensors
   double T;
   double potValue;
   double hum;
-  bool webHold;
-  bool lastHold;      // Web toggled permanent and acknowledged
-  bool held;          // Status of webHold command in Photon
-  int potDmd;         // Pot value, deg F
   Mode controlMode;   // Present control mode
   double qduct;       // heat from duct airflow, BTU/hr
   double mdot;        // air flow in duct, lbm/hr
   double mdot_lag;    // lagged air flow in duct, lbm/hr
-  Sensors(void) {}
+  Sensors() {}
   Sensors(double Ta, double Tp, double Ta_obs, double Ta_filt,
     double OAT, int I2C_status, double pcnt_pot, double pcnt_tach, double last_Tp,
-    double T, double potValue, double hum, bool webHold, bool lastHold, bool held,
-    int potDmd, Mode controlMode, double qduct, double mdot, double mdot_lag)
+    double T, double potValue, double hum,
+    Mode controlMode, double qduct, double mdot, double mdot_lag)
   {
     this->Ta = Ta;
     this->Tp = Tp;
@@ -97,10 +93,6 @@ struct Sensors
     this->T = T;
     this->potValue = potValue;
     this->hum = hum;
-    this->webHold = webHold;
-    this->lastHold = lastHold;
-    this->held = held;
-    this->potDmd = potDmd;
     this->controlMode = controlMode;
     this->qduct = qduct;
     this->mdot = mdot;
@@ -116,21 +108,18 @@ struct Control
   uint32_t duty;        // PWM duty cycle, 255-0 counts for 0-100% on ECMF-C
   double cmd_o;         // Observer PWM duty cycle output
   double set;
-  double webDmd;        // Web sched, F
+  float lim;            // set lim
   double heat_o;        // Observer heat modification, Btu/hr
-  double lastChangedWebDmd; // Remebered webDmd, F
   Control(void) {}
-  Control(double cmd, double T, uint32_t duty, double cmd_o, double set, double webDmd,
-    double heat_o, double lastChangedWebDmd)
+  Control(double cmd, double T, uint32_t duty, double cmd_o, float lim, double set, double heat_o)
   {
     this->cmd = cmd;
     this->T = T;
     this->duty = duty;
     this->cmd_o = cmd_o;
     this->set = set;
-    this->webDmd = webDmd;
+    this->lim = lim;
     this->heat_o = heat_o;
-    this->lastChangedWebDmd = lastChangedWebDmd;
   }
 };
  
@@ -154,6 +143,7 @@ struct Publish
   String hmString;
   double controlTime;
   double set;
+  float lim;
   double Tp;
   double Ta;
   double cmd;
@@ -172,11 +162,6 @@ struct Publish
   double heat_o;
   double hum;
   int numTimeouts;
-  bool held;
-  double potDmd;
-  double lastChangedWebDmd;
-  bool webHold;
-  double webDmd;
   WeatherData weatherData;
   double qduct;
   double mdot;
@@ -190,10 +175,9 @@ void serial_print(double cmd);
 boolean load(int reset, double T, Sensors *sen, Control *con, DuctTherm *duct, RoomTherm *room,
       General2_Pole* TaSenseFilt, Insolation *sun_wall, DS18 *sensor_plenum, Pins *myPins);
 uint32_t pwm_write(uint32_t duty, Pins *myPins);
-void saveTemperature(const int set, const int webDmd, const int held, const int addr, double Ta_obs);
 String tryExtractString(String str, const char* start, const char* end);
 double  decimalTime(unsigned long *currentTime, char* tempStr);
-int setSaveDisplayTemp(double t, Sensors *sen, Control *con);
+int setSaveDisplayTemp(float p, double t, Sensors *sen, Control *con);
 void print_serial_header(void);
 
 #endif

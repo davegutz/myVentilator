@@ -1,7 +1,7 @@
 //
 // MIT License
 //
-// Copyright (C) 2021 - Dave Gutz
+// Copyright (C) 2023 - Dave Gutz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,18 +21,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef ARDUINO
 #include "application.h" // Should not be needed if file .ino or Arduino
-#endif
 #include "mySubs.h"
 #include "myCloud.h"
 #include "constants.h"
 #include <math.h>
-#ifdef USE_BLYNK
-  #include "Blynk/BlynkHandlers.h"
-  #include "Blynk/BlynkTimer.h"
-  #include "BlynkParticle.h"
-#endif
 
 extern const int8_t debug;
 extern Publish pubList;
@@ -40,103 +33,29 @@ extern char buffer[256];
 extern int badWeatherCall;        // webhook lookup counter
 extern long updateweatherhour;    // Last hour weather updated
 extern bool weatherGood;          // webhook OAT lookup successful, T/F
-#ifdef USE_BLYNK
-  extern BlynkTimer blynk_timer_1, blynk_timer_2, blynk_timer_3, blynk_timer_4;     // Time Blynk events
-  extern BlynkParticle Blynk;
-  //extern BlynkParticle Blynk;
-#endif
 
-int particleSet(String command)
-{
-  int possibleSet = atoi(command);
-  if (possibleSet >= MINSET && possibleSet <= MAXSET)
-  {
-    pubList.webDmd = double(possibleSet);
-    return possibleSet;
-  }
-  else return -1;
-}
+// int particleSet(String command)
+// {
+//   int possibleSet = atoi(command);
+//   if (possibleSet >= MINSET && possibleSet <= MAXSET)
+//   {
+//     return possibleSet;
+//   }
+//   else return -1;
+// }
 
 
-#ifdef USE_BLYNK
-  // Publish1 Blynk
-  void publish1(void)
-  {
-    if (debug>4) Serial.printf("Blynk write1\n");
-    Blynk.virtualWrite(V0,  pubList.cmd);
-    Blynk.virtualWrite(V2,  pubList.Ta);
-    Blynk.virtualWrite(V3,  pubList.hum);
-    // Blynk.virtualWrite(V4,  intentionally blank; used elsewhere);
-    Blynk.virtualWrite(V5,  pubList.Tp);
-  }
-
-
-  // Publish2 Blynk
-  void publish2(void)
-  {
-    if (debug>4) Serial.printf("Blynk write2\n");
-    Blynk.virtualWrite(V7,  pubList.held);
-    Blynk.virtualWrite(V8,  pubList.T);
-    Blynk.virtualWrite(V9,  pubList.potDmd);
-    Blynk.virtualWrite(V10, pubList.lastChangedWebDmd);
-    Blynk.virtualWrite(V11, pubList.set);
-  }
-
-
-  // Publish3 Blynk
-  void publish3(void)
-  {
-    if (debug>4) Serial.printf("Blynk write3\n");
-    Blynk.virtualWrite(V12, pubList.solar_heat);
-    Blynk.virtualWrite(V13, pubList.Ta);
-    Blynk.virtualWrite(V14, pubList.I2C_status);
-    Blynk.virtualWrite(V15, pubList.hmString);
-    Blynk.virtualWrite(V16, pubList.duty);
-  }
-
-
-// Publish4 Blynk
-  void publish4(void)
-  {
-    if (debug>4) Serial.printf("Blynk write4\n");
-    Blynk.virtualWrite(V17, false);
-    Blynk.virtualWrite(V18, pubList.OAT);
-    Blynk.virtualWrite(V19, pubList.Ta_obs);
-    Blynk.virtualWrite(V20, pubList.heat_o);
-  }
-
-  // Attach a Slider widget to the Virtual pin 4 IN in your Blynk app
-  // - and control the web desired temperature.
-  // Note:  there are separate virtual IN and OUT in Blynk.
-  BLYNK_WRITE(V4) {
-      if (param.asInt() > 0)
-      {
-          pubList.webDmd = param.asDouble();
-      }
-  }
-
-
-  // Attach a switch widget to the Virtual pin 6 in your Blynk app - and demand continuous web control
-  // Note:  there are separate virtual IN and OUT in Blynk.
-  BLYNK_WRITE(V6) {
-      pubList.webHold = param.asInt();
-  }
-
-#endif
-
-int particleHold(String command)
-{
-  if (command == "HOLD")
-  {
-    pubList.webHold = true;
-    return 1;
-  }
-  else
-  {
-    pubList.webHold = false;
-    return 0;
-  }
-}
+// int particleHold(String command)
+// {
+//   if (command == "HOLD")
+//   {
+//     return 1;
+//   }
+//   else
+//   {
+//     return 0;
+//   }
+// }
 
 
 //Updates Weather Forecast Data

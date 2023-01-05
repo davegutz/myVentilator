@@ -1,7 +1,7 @@
 //
 // MIT License
 //
-// Copyright (C) 2021 - Dave Gutz
+// Copyright (C) 2023 - Dave Gutz
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -36,9 +36,9 @@ extern char buffer[256];
 // Check connection and publish Particle
 void publish_particle(unsigned long now)
 {
-  sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
+  sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
   %7.3f,%ld, %7.3f, %7.1f, %7.1f, %7.1f, %7.3f, %7.3f, %c", \
-    pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.set-HYST, pubList.Tp,
+    pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.lim, pubList.set-HYST, pubList.Tp,
     pubList.Ta, pubList.cmd, pubList.T, pubList.OAT, pubList.Ta_obs, pubList.err, pubList.prop,
     pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o,
     pubList.qduct, pubList.mdot, pubList.mdot_lag, '\0');
@@ -68,15 +68,15 @@ void publish_particle(unsigned long now)
 // Text header
 void print_serial_header(void)
 {
-  Serial.println(F("unit,hm, cTime, set,Tp,Ta,cmd,  T,OAT,Ta_o,  err,prop,integ,cont,  pcnt_pot,duty,Ta_filt,  solar,  heat_o, qduct, mdot, mdot_lag,"));
+  Serial.println(F("unit,hm, cTime, lim,set,Tp,Ta,cmd,  T,OAT,Ta_o,  err,prop,integ,cont,  pcnt_pot,duty,Ta_filt,  solar,  heat_o, qduct, mdot, mdot_lag,"));
 }
 
 // Inputs serial print
 void serial_print_inputs(unsigned long now, double T)
 {
-  sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
+  sprintf(buffer, "%s,%s,%18.3f,   %4.1f,%4.1f,%7.3f,%7.3f,%5.1f,   %5.2f,%4.1f,%7.3f,  %7.3f,%7.3f,%7.3f,%7.3f,\
   %7.3f,%ld, %7.3f, %7.1f, %7.1f, %7.1f, %7.3f, %7.3f, %c", \
-    pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.set-HYST, pubList.Tp,
+    pubList.unit.c_str(), pubList.hmString.c_str(), pubList.controlTime, pubList.lim, pubList.set-HYST, pubList.Tp,
     pubList.Ta, pubList.cmd, pubList.T, pubList.OAT, pubList.Ta_obs, pubList.err, pubList.prop,
     pubList.integ, pubList.cont, pubList.pcnt_pot, pubList.duty, pubList.Ta_filt, pubList.solar_heat, pubList.heat_o, 
     pubList.qduct, pubList.mdot, pubList.mdot_lag, '\0');
@@ -187,18 +187,6 @@ uint32_t pwm_write(uint32_t duty, Pins *myPins)
     return duty;
 }
 
-
-// Save temperature setpoint to flash for next startup.   During power
-// failures the thermostat will reset to the condition it was in before
-// the power failure.   Filter initialized to sensed temperature (lose anticipation briefly
-// following recovery from power failure).
-void saveTemperature(const int set, const int webDmd, const int held, const int addr, double Ta_obs)
-{
-    uint8_t values[4] = { (uint8_t)set, (uint8_t)held, (uint8_t)webDmd, (uint8_t)(roundf(Ta_obs)) };
-    EEPROM.put(addr, values);
-}
-
-
 // Returns any text found between a start and end string inside 'str'
 // example: startfooend  -> returns foo
 String tryExtractString(String str, const char* start, const char* end)
@@ -262,18 +250,10 @@ double decimalTime(unsigned long *currentTime, char* tempStr)
 
 
 // Process a new temperature setting
-int setSaveDisplayTemp(double t, Sensors *sen, Control *con)
+int setSaveDisplayTemp(float lim, double t, Sensors *sen, Control *con)
 {
     con->set = t;
-    // Serial.printf("setSave:   set=%7.1f\n", con->set);
-    switch(sen->controlMode)
-    {
-        case POT:   
-           break;
-        case WEB:   break;
-        case SCHD:  break;
-    }
-    saveTemperature(con->set, int(con->webDmd), sen->held, EEPROM_ADDR, sen->Ta_obs);
+    con->lim = lim;
     return con->set;
 }
 
