@@ -5,9 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="11fcedf0-fca4-4225-9c4f-5e6f1b6f2b6c" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/debug.csv" beforeDir="false" afterPath="$PROJECT_DIR$/debug.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/main.h" beforeDir="false" afterPath="$PROJECT_DIR$/../src/main.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/doubtf.csv" beforeDir="false" afterPath="$PROJECT_DIR$/doubtf.csv" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
