@@ -42,24 +42,16 @@ Desktop settings
         const   String    unit = "proto";
         #define BARE                  // Run without peripherals, except maybe a POT
 
-Laptop settings.json has  "particle.targetDevice": "vent"
+Deployed settings.json has  "particle.targetDevice": "vent"
     .json has "particle.targetDevice": "vent"
     local_config.h has 
         const   String    unit = "vent";
-
-On desktop (has curlParticle.py running in cygwin)
-    after observing outputs from long cURL run, Modify main.h etc.   Make sure it compiles.
-    flast to target 'proto' and test
+    curlParticle.py running in pycharm using python 3.6.8 max
+    after observing outputs from long cURL run using scilab Vent_data_reduce.sce, Modify main.h etc.   Make sure it compiles.
+    flast to target 'vent' and test
     push into GitHub repository
 
-On laptop (has curl "kjejt" running in cygwin)
-    pull from GitHub repository changes just made on desktop
-    compile
-    flash to target 'vent'
-
 View results
-    Prototype realtime using Blynk (ExpThermo)
-    Target realtime using Blynk (Sunshine Room)
     Target post-process using Vent_data_reduce.sce in sciLab
 
 ## Hardware notes
