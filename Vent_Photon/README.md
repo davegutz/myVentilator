@@ -47,6 +47,9 @@ Deployed settings.json has  "particle.targetDevice": "vent"
     local_config.h has 
         const   String    unit = "vent";
     curlParticle.py running in pycharm using python 3.6.8 max
+		Run it and leave it running.  It fills debug.csv. When ready to look at data use scilab to run Vent_data_reduce
+			if will make a dated.csv and leave debug.csv running.
+			then it will stop until you run it again.
     after observing outputs from long cURL run using scilab Vent_data_reduce.sce, Modify main.h etc.   Make sure it compiles.
     flast to target 'vent' and test
     push into GitHub repository
