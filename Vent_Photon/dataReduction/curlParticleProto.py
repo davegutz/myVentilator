@@ -9,7 +9,7 @@
 #	running:   	cygwin> cd /cygdrive/c/Users/Dave/Documents/GitHub/myVentilator/Vent_Photon/dataReduction
 #				cygwin> py curlParticleProto.py
 # Plotting:
-#	install sciLab 6.1 or later.  (Didn't work with 5.5.2)
+#	install sciLab 6.1 or later.  (Didn't work with 5.5.2).  Could use msexcel or equivalent instead, opening csv file.
 # 	install pdftk (use win8 compatibility)
 # 	windows - dataReduction> double-click on Vent_data_reduce.sce
 # <or> open debug.csv in msexcel
@@ -28,7 +28,8 @@ except ImportError:
     from io import StringIO, BytesIO
 import json
 
-STREAM_URL = "https://api.particle.io/v1/devices/events?access_token=7cab32b80bbbfdf8e1e83220c7479343a53e826e"
+# STREAM_URL = "https://api.particle.io/v1/devices/events?access_token=7cab32b80bbbfdf8e1e83220c7479343a53e826e"
+STREAM_URL = "https://api.particle.io/v1/devices/290037001551353531343431/events?access_token=b0220f1425eac6856cec588adec2f97156f56b45"
 DEVICE_NAME = 'proto'
 cts = datetime.datetime.now().isoformat()
 cts = cts.replace(':', '-')
@@ -55,11 +56,11 @@ class Client:
     def on_receive(self, byte_obj):
         text_obj = byte_obj.decode('UTF-8').strip()
         beg = text_obj.find(DEVICE_NAME+',')
-        if beg>0:
+        if beg > 0:
             beg += DEVICE_NAME_LENGTH+1
             end = text_obj.find(TRAIL_STR)
             csv_string = text_obj[beg:end]
-            if len(csv_string)>1:
+            if len(csv_string) > 1:
                 print(csv_string)
                 self.f.write(csv_string+'\n')
                 self.f.flush()
