@@ -17,9 +17,11 @@
 # 	windows - dataReduction> double-click on Vent_data_reduce.sce
 # <or> open debug.csv in msexcel
 # MIT License
+
 #
 # 2021-Feb-02 	Dave Gutz 		Create
 # 2021-Nov-08   Dave Gutz       Verify operation after computer rebuild.   Token had changed
+# 2023-Nov-03   Dave Gutz       The token had changed again.  Also had to reset the PLC pressing the button.
 
 import sys
 import pycurl
