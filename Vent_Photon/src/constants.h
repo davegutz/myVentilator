@@ -46,7 +46,9 @@
 #define MAXSET 68               // Maximum setpoint allowed (70), F
 #define CONTROL_DELAY    2000UL     // Control law wait, ms (5000)
 #define PUBLISH_DELAY    10000UL    // Time between cloud updates, ms (30000UL)
-#define PUBLISH_PARTICLE_DELAY 2000UL // Particle cloud updates (2000UL)
+// #define PUBLISH_PARTICLE_DELAY 2000UL // Particle cloud updates (2000UL) (for debugging.)
+#define PUBLISH_PARTICLE_DELAY 40000UL // Particle cloud updates (40000UL) (20x old rate that 2000UL resulting in 1.9 Mega operations / month)
+// Change 
 #define READ_DELAY       500UL      // Sensor read wait (5000, 100 for stress test), ms (1000UL)
 #define QUERY_DELAY      900000UL   // Web query wait (15000, 100 for stress test), ms (900000UL)
 #define DISPLAY_DELAY    300UL      // Serial display scheduling frame time, ms (300UL)
